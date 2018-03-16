@@ -77,7 +77,7 @@
 		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! advection                                                                      !
 		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		nsteps=ceiling(dt/dz*(max(maxval(u),abs(minval(u)))))
+		nsteps=ceiling(dt/(0.7_sp*dz)*(max(maxval(u),abs(minval(u)))))
 		do iter=1,nsteps
 			do j=1,nq
 				! set halos
