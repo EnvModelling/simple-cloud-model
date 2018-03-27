@@ -397,6 +397,7 @@
 	!>@return svp_liq: saturation vapour pressure over liquid water
 	function svp_liq(t)
 		use nrtype
+		use constants, only : ttr
 		implicit none
 		real(sp), intent(in) :: t
 		real(sp) :: svp_liq
