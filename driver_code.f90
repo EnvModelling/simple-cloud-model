@@ -15,6 +15,7 @@
 	!>writes to output file, solves for the microphysics over one time-step, 
 	!> then advects particles
 	!>@param[in] nq: number of q fields
+	!>@param[in] nprec: number of precipitation arrays
 	!>@param[in] kp: number of vertical levels
 	!>@param[in] ord: order of advection scheme
 	!>@param[in] o_halo: halos required for advection scheme
@@ -33,7 +34,7 @@
 	!>@param[in] hm_flag - flag for switching on / off hm process
 	!>@param[in] theta_flag - flag for advecting theta dry
 	!>@param[in] mass_ice - mass of a single ice crystal (override)
-    subroutine model_driver_1d(nq,kp,ord,o_halo,runtime, &
+    subroutine model_driver_1d(nq,nprec,kp,ord,o_halo,runtime, &
                                dt,updraft_type,t_thresh,w_peak, &
                                q,precip,theta,p,dz,z,t,rho,u,new_file,micro_init,monotone, &
                                microphysics_flag,hm_flag,theta_flag,mass_ice)
@@ -43,13 +44,14 @@
     use micro_module
 
     implicit none
-    integer(i4b), intent(in) :: nq,kp, ord, o_halo, updraft_type
+    integer(i4b), intent(in) :: nq,nprec,kp, ord, o_halo, updraft_type
     real(sp), intent(in) :: runtime, dt, dz, t_thresh,w_peak
     real(sp), dimension(nq,-o_halo:kp+o_halo), intent(inout) :: q
-    real(sp), dimension(4,1:kp), intent(inout) :: precip
+    real(sp), dimension(nprec,1:kp), intent(inout) :: precip
     real(sp), dimension(-o_halo:kp+o_halo), intent(inout) :: theta, p, z, t,rho,u
     logical, intent(inout) :: new_file, micro_init
-    logical, intent(in) :: monotone,microphysics_flag, hm_flag,theta_flag
+    logical, intent(in) :: monotone,hm_flag,theta_flag
+    integer(i4b), intent(in) :: microphysics_flag
     real(sp), intent(in) :: mass_ice
 
     ! local variables
@@ -69,7 +71,7 @@
     
     
         ! output:
-        call output_1d(time,nq,kp,q(:,1:kp),precip(:,1:kp),theta(1:kp),p(1:kp), &
+        call output_1d(time,nq,nprec,kp,q(:,1:kp),precip(:,1:kp),theta(1:kp),p(1:kp), &
                        z(1:kp),t(1:kp),u(1:kp),new_file)
 
 
@@ -100,7 +102,7 @@
 
 
         ! solve microphysics. initialise constants that are commonly used, if needed
-        if (microphysics_flag) then
+        if (microphysics_flag .eq. 1) then
 			call microphysics_1d(nq,kp,o_halo,dt,dz,q,precip,theta,p, &
 						   z,t,rho,u,micro_init,hm_flag,mass_ice)
 			! calculate precipitation diagnostics
@@ -200,10 +202,11 @@
 	!>output 1 time-step of model
 	!>@param[in] time in seconds
 	!>@param[in] nq number of q fields
+	!>@param[in] nprec number of precipitation fields
 	!>@param[in] kp number of vertical levels
 	!>@param[in] q, precip, theta, pressure, z, temperature,u
 	!>@param[inout] new_file
-    subroutine output_1d(time,nq,kp,q,precip,theta,p,z,t,u,new_file)
+    subroutine output_1d(time,nq,nprec,kp,q,precip,theta,p,z,t,u,new_file)
 
     use nrtype
     use netcdf
@@ -211,9 +214,9 @@
 
     implicit none
     real(sp), intent(in) :: time
-    integer(i4b), intent(in) :: nq,kp
+    integer(i4b), intent(in) :: nq,nprec,kp
     real(sp), dimension(nq,kp), intent(in) :: q
-    real(sp), dimension(4,kp), intent(in) :: precip
+    real(sp), dimension(nprec,kp), intent(in) :: precip
     real(sp), dimension(kp), intent(in) :: theta, p, z, t, u
     logical, intent(inout) :: new_file
 
@@ -227,7 +230,7 @@
         ! define dimensions (netcdf hands back a handle)
         call check( nf90_def_dim(io1%ncid, "times", NF90_UNLIMITED, io1%x_dimid) )
         call check( nf90_def_dim(io1%ncid, "nq", nq, io1%nq_dimid) )
-        call check( nf90_def_dim(io1%ncid, "nprec", 4, io1%nprec_dimid) )
+        call check( nf90_def_dim(io1%ncid, "nprec", nprec, io1%nprec_dimid) )
         call check( nf90_def_dim(io1%ncid, "kp", kp, io1%k_dimid) )
 
 

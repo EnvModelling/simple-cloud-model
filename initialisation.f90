@@ -8,15 +8,48 @@
     use nrtype
 !    use variables
     private
-    public :: calc_profile_1d
+    public :: calc_profile_1d, allocate_arrays
     contains
     
     
 	!>@author
 	!>Paul J. Connolly, The University of Manchester
 	!>@brief
+	!>allocate arrays for q_type and q_init
+	!>@param[in] nq number of q fields
+	!>@param[in] n_levels number of levels for reading in sounding
+	!>@param[inout] q_type: integer array
+	!>@param[inout] q_init: logical array
+	!>@param[inout] q_read: real array
+    subroutine allocate_arrays(nq,n_levels,q_type,q_init,q_read)
+    use nrtype
+    implicit none
+    integer(i4b), intent(in) :: nq, n_levels
+    integer(i4b), dimension(:), allocatable, intent(inout) :: q_type
+    logical, dimension(:), allocatable, intent(inout) :: q_init
+    real(sp), dimension(:,:), allocatable, intent(inout) :: q_read
+    ! local variables:
+    integer(i4b) :: AllocateStatus
+    
+    ! allocate arrays
+    allocate( q_type(1:nq), STAT = AllocateStatus)
+    if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
+    allocate( q_init(1:nq), STAT = AllocateStatus)
+    if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
+    allocate( q_read(1:nq,1:n_levels), STAT = AllocateStatus)
+    if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
+    
+    
+    end subroutine allocate_arrays
+
+
+
+	!>@author
+	!>Paul J. Connolly, The University of Manchester
+	!>@brief
 	!>interpolates the sounding to the grid
 	!>@param[in] nq number of q fields
+	!>@param[in] nprec number of precipitation arrays
 	!>@param[in] n_levels number levels for sounding
 	!>@param[in] psurf surface pressure
 	!>@param[in] tsurf surface temperature
@@ -35,7 +68,7 @@
 	!>@param[inout] q, precip, theta, pressure, z, temperature, rho,u
 	!>@param[in] number conc of ice crystals #/kg
 	!>@param[in] mass of a single ice crystal kg.
-    subroutine calc_profile_1d(nq,n_levels,psurf,tsurf,t_cbase, &
+    subroutine calc_profile_1d(nq,nprec,n_levels,psurf,tsurf,t_cbase, &
     						t_ctop, adiabatic_prof, adiabatic_frac, q_type,q_init, &
                              z_read,theta_read,q_read, &
                              kp,o_halo,dz,q,precip,theta,p,z,t,rho,u, &
@@ -48,7 +81,7 @@
 
     implicit none
     ! inputs
-    integer(i4b), intent(in) :: n_levels, nq,o_halo
+    integer(i4b), intent(in) :: n_levels, nq,nprec,o_halo
     real(sp), dimension(n_levels), intent(in) :: z_read, theta_read
     real(sp), dimension(nq,n_levels), intent(in) :: q_read
     integer(i4b), dimension(nq), intent(in) :: q_type
@@ -69,7 +102,7 @@
 	real(sp) :: htry,hmin,eps2,p1,p2,p_ctop,z11,z22,theta1
 
     ! allocate arrays
-    allocate( precip(1:4,1:kp), STAT = AllocateStatus)
+    allocate( precip(1:nprec,1:kp), STAT = AllocateStatus)
     if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
     allocate( q(1:nq,-o_halo:kp+o_halo), STAT = AllocateStatus)
     if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
