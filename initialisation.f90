@@ -77,7 +77,6 @@
     use nr, only : locate, polint, rkqs, odeint, zbrent
     use constants
     use variables, only : theta_surf, theta_q_sat, w_cb, t1old, p111
-    use micro_module, only : svp_liq
 
     implicit none
     ! inputs
@@ -365,7 +364,6 @@
 	use nrtype
 	use constants
 	use variables, only : theta_q_sat, p111
-	use micro_module, only : svp_liq
 	implicit none
 	real(sp), intent(in) :: t111
 	real(sp) :: calc_theta_q
@@ -379,7 +377,6 @@
 	use nrtype
 	use constants
 	use variables, only : theta_q_sat, t1old
-	use micro_module, only : svp_liq
 	implicit none
 	real(sp), intent(in) :: p
 	real(sp) :: calc_theta_q2
@@ -389,6 +386,24 @@
 
 	end function calc_theta_q2    
 
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	! saturation vapour pressure over liquid                                       !
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	!>@author
+	!>Paul J. Connolly, The University of Manchester
+	!>@brief
+	!>calculates the saturation vapour pressure over liquid water according to buck fit
+	!>@param[in] t: temperature
+	!>@return svp_liq: saturation vapour pressure over liquid water
+	function svp_liq(t)
+		use nrtype
+		implicit none
+		real(sp), intent(in) :: t
+		real(sp) :: svp_liq
+		svp_liq = 100._sp*6.1121_sp* &
+			  exp((18.678_sp - (t-ttr)/ 234.5_sp)* &
+			  (t-ttr)/(257.14_sp + (t-ttr)))
+	end function svp_liq
 
 
     end module initialisation
