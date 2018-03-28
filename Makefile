@@ -64,8 +64,6 @@ initialisation.$(OBJ) : initialisation.f90 project_code
 	$(FOR) initialisation.f90 $(FFLAGS)initialisation.$(OBJ) -I$(CODE_DIR)
 advection.$(OBJ) : advection.f90 
 	$(FOR) advection.f90 $(FFLAGS)advection.$(OBJ)
-microphysics.$(OBJ) : microphysics.f90 advection.$(OBJ)
-	$(FOR) microphysics.f90 $(FFLAGS)microphysics.$(OBJ)
 driver_code.$(OBJ) : driver_code.f90 advection.$(OBJ) project_code
 	$(FOR) driver_code.f90  \
 		-I ${NETCDFMOD} $(FFLAGS)driver_code.$(OBJ) -I$(CODE_DIR)
