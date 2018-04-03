@@ -1,7 +1,7 @@
-CODE_DIR = mpm
+MPM_DIR = mpm
 
-.PHONY: project_code cleanall
-CLEANDIRS = $(CODE_DIR) ./
+.PHONY: mpm_code cleanall
+CLEANDIRS = $(MPM_DIR) ./
 
 DEBUG = -fbounds-check -g
 MPI    =#-DMPI1
@@ -30,9 +30,9 @@ FFLAGS2 =  $(DEBUG) -O3 -o
 
 
 main.exe	:  model_lib.a  main.$(OBJ) variables.$(OBJ) initialisation.$(OBJ) driver_code.$(OBJ) \
-		 advection.$(OBJ) project_code
+		 advection.$(OBJ) mpm_code
 	$(FOR2) $(FFLAGS2)main.exe main.$(OBJ) variables.$(OBJ) initialisation.$(OBJ) driver_code.$(OBJ) \
-		$(CODE_DIR)/advection_1d.$(OBJ) advection.$(OBJ) $(CODE_DIR)/microphysics.$(OBJ) -lm model_lib.a \
+		$(MPM_DIR)/advection_1d.$(OBJ) advection.$(OBJ) $(MPM_DIR)/microphysics.$(OBJ) -lm model_lib.a \
 		${NETCDFLIB} -I ${NETCDFMOD} ${NETCDF_LIB} $(DEBUG)
 model_lib.a	:   nrtype.$(OBJ) nr.$(OBJ) nrutil.$(OBJ) locate.$(OBJ) polint.$(OBJ) \
 				rkqs.$(OBJ) rkck.$(OBJ) odeint.$(OBJ) zbrent.$(OBJ) \
@@ -60,21 +60,21 @@ zbrent.$(OBJ)	: zbrent.f90
 	$(FOR) zbrent.f90 $(FFLAGS2)zbrent.$(OBJ)	
 variables.$(OBJ) : variables.f90
 	$(FOR) variables.f90 $(FFLAGS)variables.$(OBJ)
-initialisation.$(OBJ) : initialisation.f90 project_code
-	$(FOR) initialisation.f90 $(FFLAGS)initialisation.$(OBJ) -I$(CODE_DIR)
+initialisation.$(OBJ) : initialisation.f90 mpm_code
+	$(FOR) initialisation.f90 $(FFLAGS)initialisation.$(OBJ) -I$(MPM_DIR)
 advection.$(OBJ) : advection.f90 
 	$(FOR) advection.f90 $(FFLAGS)advection.$(OBJ)
-driver_code.$(OBJ) : driver_code.f90 advection.$(OBJ) project_code
+driver_code.$(OBJ) : driver_code.f90 advection.$(OBJ) mpm_code
 	$(FOR) driver_code.f90  \
-		-I ${NETCDFMOD} $(FFLAGS)driver_code.$(OBJ) -I$(CODE_DIR)
+		-I ${NETCDFMOD} $(FFLAGS)driver_code.$(OBJ) -I$(MPM_DIR)
 hygfx.$(OBJ) : hygfx.for 
 	$(FOR) hygfx.for $(FFLAGS)hygfx.$(OBJ) 
 main.$(OBJ)   : main.f90 variables.$(OBJ) initialisation.$(OBJ) driver_code.$(OBJ) \
-				project_code
+				mpm_code
 	$(FOR)  main.f90 -I ${NETCDFMOD}  $(FFLAGS)main.$(OBJ) 
 
-project_code:
-	$(MAKE) -C $(CODE_DIR)
+mpm_code:
+	$(MAKE) -C $(MPM_DIR)
 
 clean: 
 	rm *.exe  *.o *.mod *~ \
