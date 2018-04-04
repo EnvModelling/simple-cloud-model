@@ -9,7 +9,7 @@
 	ord=8,		     ! order of advection for bott scheme (except precip)
 	halo=0,
 	monotone=.true.,    ! monotone advection (except precip)
-	microphysics_flag=.true., ! flag for microphysics
+	microphysics_flag=1, ! flag for microphysics: 0 (no micro); 1 (bulk scheme #1)
 	hm_flag=.true.,	     ! switch hm process on / off
 	theta_flag=.false.,  ! advect theta
 	ice_init=.true.,

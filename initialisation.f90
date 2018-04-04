@@ -66,13 +66,14 @@
 	!>@param[in] o_halo number of extra grid levels required for advection
 	!>@param[in] dz vertical resolution of grid
 	!>@param[inout] q, precip, theta, pressure, z, temperature, rho,u
+	!>@param[in] ice_init: flag to initialise ice crystals in model
 	!>@param[in] number conc of ice crystals #/kg
 	!>@param[in] mass of a single ice crystal kg.
     subroutine calc_profile_1d(nq,nprec,n_levels,psurf,tsurf,t_cbase, &
     						t_ctop, adiabatic_prof, adiabatic_frac, q_type,q_init, &
                              z_read,theta_read,q_read, &
                              kp,o_halo,dz,q,precip,theta,p,z,t,rho,u, &
-                             num_ice, mass_ice)
+                             ice_init,num_ice, mass_ice)
     use nrtype
     use nr, only : locate, polint, rkqs, odeint, zbrent
     use constants
@@ -87,7 +88,7 @@
     logical, dimension(nq), intent(in) :: q_init
     integer(i4b), intent(in) :: kp
     real(sp), intent(in) :: dz, psurf, tsurf, t_cbase, t_ctop
-    logical, intent(in) :: adiabatic_prof
+    logical, intent(in) :: adiabatic_prof, ice_init
     real(sp), intent(in) :: adiabatic_frac
     real(sp), intent(in) :: num_ice, mass_ice
     ! inouts
@@ -231,10 +232,12 @@
 		t(istore2:kp+o_halo)=theta1*(p(istore2:kp+o_halo)/1.e5_sp)**(ra/cp)
 
 		! initialise ice crystals
-		where(t(istore:istore2).lt.ttr)
-			q(6,istore:istore2)=num_ice*mass_ice
-			q(7,istore:istore2)=num_ice
-		end where
+		if(ice_init) then
+            where(t(istore:istore2).lt.ttr)
+                q(6,istore:istore2)=num_ice*mass_ice
+                q(7,istore:istore2)=num_ice
+            end where
+        endif
 		
 	else
 		! use linear interpolation to put sounding on grid:

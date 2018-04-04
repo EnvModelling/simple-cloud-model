@@ -76,7 +76,8 @@
         					q_type,q_init, z_read,theta_read, &
                             q_read,kp,o_halo,dz,grid1%q, grid1%precip, &
                             grid1%theta, grid1%p, &
-                            grid1%z,grid1%t,grid1%rho,grid1%u, num_ice, mass_ice)
+                            grid1%z,grid1%t,grid1%rho,grid1%u, &
+                            ice_init, num_ice, mass_ice)
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
