@@ -30,6 +30,7 @@
         use variables
         use initialisation
         use drivers
+        use bam, only : read_in_bam_namelist
         implicit none
 
         character (len=200) :: nmlfile = ' '
@@ -43,8 +44,9 @@
         ! define namelists for environment
         namelist /run_vars/ outputfile, runtime, kp, dz, dt, &
                     nq, nprec, &
-                    ord, halo, monotone, microphysics_flag,hm_flag, theta_flag, &
-        			ice_init, num_ice, mass_ice, &
+                    ord, halo, monotone, microphysics_flag, &
+                    bam_nmlfile, hm_flag, theta_flag, &
+        			drop_num_init, num_drop, ice_init, num_ice, mass_ice, &
         			updraft_type, t_thresh, &
         			t_thresh2,w_peak
         namelist /run_vars2/ q_type, q_init
@@ -63,6 +65,11 @@
         read(8,nml=sounding_spec)
         close(8)
         o_halo=ord+2 !ord+1
+        
+        
+        if (microphysics_flag .eq. 2) then
+            call read_in_bam_namelist(bam_nmlfile)
+        endif
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
@@ -77,7 +84,8 @@
                             q_read,kp,o_halo,dz,grid1%q, grid1%precip, &
                             grid1%theta, grid1%p, &
                             grid1%z,grid1%t,grid1%rho,grid1%u, &
-                            ice_init, num_ice, mass_ice)
+                            drop_num_init, num_drop, ice_init, num_ice, mass_ice, &
+                            microphysics_flag)
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 

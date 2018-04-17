@@ -66,14 +66,18 @@
 	!>@param[in] o_halo number of extra grid levels required for advection
 	!>@param[in] dz vertical resolution of grid
 	!>@param[inout] q, precip, theta, pressure, z, temperature, rho,u
+	!>@param[in] drop_num_init: flag to initialise number of drops where liquid water>0
+	!>@param[in] number conc of drops #/kg
 	!>@param[in] ice_init: flag to initialise ice crystals in model
 	!>@param[in] number conc of ice crystals #/kg
 	!>@param[in] mass of a single ice crystal kg.
+	!>@param[in] microphysics_flag: flag for kind of microphysics used
     subroutine calc_profile_1d(nq,nprec,n_levels,psurf,tsurf,t_cbase, &
     						t_ctop, adiabatic_prof, adiabatic_frac, q_type,q_init, &
                              z_read,theta_read,q_read, &
                              kp,o_halo,dz,q,precip,theta,p,z,t,rho,u, &
-                             ice_init,num_ice, mass_ice)
+                             drop_num_init, num_drop, ice_init,num_ice, mass_ice, &
+                             microphysics_flag)
     use nrtype
     use nr, only : locate, polint, rkqs, odeint, zbrent
     use constants
@@ -86,11 +90,11 @@
     real(sp), dimension(nq,n_levels), intent(in) :: q_read
     integer(i4b), dimension(nq), intent(in) :: q_type
     logical, dimension(nq), intent(in) :: q_init
-    integer(i4b), intent(in) :: kp
+    integer(i4b), intent(in) :: kp, microphysics_flag
     real(sp), intent(in) :: dz, psurf, tsurf, t_cbase, t_ctop
-    logical, intent(in) :: adiabatic_prof, ice_init
+    logical, intent(in) :: adiabatic_prof, ice_init, drop_num_init
     real(sp), intent(in) :: adiabatic_frac
-    real(sp), intent(in) :: num_ice, mass_ice
+    real(sp), intent(in) :: num_drop, num_ice, mass_ice
     ! inouts
     real(sp), dimension(:), allocatable, intent(inout) :: theta, p, z, t, rho,u
     real(sp), dimension(:,:), allocatable, intent(inout) :: q, precip
@@ -215,6 +219,9 @@
 								(p(i)-svp_liq(t(i)))
 			q(2,i)=adiabatic_frac* &
 			    max(eps1*svp_liq(t_cbase)/(p1-svp_liq(t_cbase)) - q(1,i),0._sp)
+			if(drop_num_init .and. (microphysics_flag .eq. 2)) then
+			    q(4,i) = num_drop
+			endif
 		enddo
 
 		! integrate going upwards - dry adiabatic layer
@@ -232,7 +239,7 @@
 		t(istore2:kp+o_halo)=theta1*(p(istore2:kp+o_halo)/1.e5_sp)**(ra/cp)
 
 		! initialise ice crystals
-		if(ice_init) then
+		if(ice_init .and. (microphysics_flag .eq. 1)) then
             where(t(istore:istore2).lt.ttr)
                 q(6,istore:istore2)=num_ice*mass_ice
                 q(7,istore:istore2)=num_ice
