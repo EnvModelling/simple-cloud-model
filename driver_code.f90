@@ -105,11 +105,11 @@
         ! solve microphysics. initialise constants that are commonly used, if needed
         if (microphysics_flag .eq. 1) then
 			call microphysics_1d(nq,kp,o_halo,dt,dz,q,precip,theta,p, &
-						   z,t,rho,u,micro_init,hm_flag,mass_ice)
+						   z,t,rho,u,micro_init,hm_flag,mass_ice,theta_flag)
 			! calculate precipitation diagnostics
         else if (microphysics_flag .eq. 2) then
 			call w_microphysics_1d(nq,kp,o_halo,dt,dz,q,precip,theta,p, &
-						   z,t,rho,u,micro_init,hm_flag,mass_ice)
+						   z,t,rho,u,micro_init,hm_flag,mass_ice,theta_flag)
 			! calculate precipitation diagnostics
 		endif       
 
