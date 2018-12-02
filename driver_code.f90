@@ -24,7 +24,7 @@
 	!>@param[in] updraft_type - updraft_type
 	!>@param[in] t_thresh - t_thresh
 	!>@param[in] w_peak - w_peak
-	!>@param[in] dz - grid spacing
+	!>@param[in] dz,dz2 - grid spacing
 	!>@param[inout] q, theta, pressure, z, temperature, rho, u
 	!>@param[inout] precip
 	!>@param[inout] new_file
@@ -36,19 +36,21 @@
 	!>@param[in] mass_ice - mass of a single ice crystal (override)
     subroutine model_driver_1d(nq,nprec,kp,ord,o_halo,runtime, &
                                dt,updraft_type,t_thresh,w_peak, &
-                               q,precip,theta,p,dz,z,t,rho,u,new_file,micro_init,monotone, &
+                               q,precip,theta,p,dz,dz2,z,t,rho,u,new_file,micro_init,monotone, &
                                microphysics_flag,hm_flag,theta_flag,mass_ice)
 
     use nrtype
     use advection
+    use advection_s_1d
     use micro_module
     use w_micro_module 
 
     implicit none
     integer(i4b), intent(in) :: nq,nprec,kp, ord, o_halo, updraft_type
     real(sp), intent(in) :: runtime, dt, dz, t_thresh,w_peak
-    real(sp), dimension(nq,-o_halo:kp+o_halo), intent(inout) :: q
-    real(sp), dimension(nprec,1:kp), intent(inout) :: precip
+    real(sp), dimension(-o_halo:kp+o_halo,nq), intent(inout) :: q
+    real(sp), dimension(1:kp,nprec), intent(inout) :: precip
+    real(sp), dimension(-o_halo:kp+o_halo), intent(in) :: dz2
     real(sp), dimension(-o_halo:kp+o_halo), intent(inout) :: theta, p, z, t,rho,u
     logical, intent(inout) :: new_file, micro_init
     logical, intent(in) :: monotone,hm_flag,theta_flag
@@ -57,6 +59,7 @@
 
     ! local variables
     integer(i4b) :: nt, i, j, nsteps, iter
+    real(sp), dimension(-o_halo:kp+o_halo,nq) :: qtemp
     real(sp) :: time
 
 
@@ -72,7 +75,7 @@
     
     
         ! output:
-        call output_1d(time,nq,nprec,kp,q(:,1:kp),precip(:,1:kp),theta(1:kp),p(1:kp), &
+        call output_1d(time,nq,nprec,kp,q(1:kp,:),precip(1:kp,:),theta(1:kp),p(1:kp), &
                        z(1:kp),t(1:kp),u(1:kp),new_file)
 
 
@@ -84,11 +87,17 @@
 		do iter=1,nsteps
 			do j=1,nq
 				! set halos
-				call set_halos_1d(kp,ord,o_halo,q(j,:))            
+				call set_halos_1d(kp,ord,o_halo,q(:,j))            
 				! advection
 				call bott_scheme_1d(kp,ord,o_halo,dt/real(nsteps,sp), &
-									dz,z,u,q(j,:),monotone)
+									dz,z,u,q(:,j),monotone)
+				!call first_order_upstream_1d(dt/real(nsteps,sp),dz2, &
+				!                            rho,kp,o_halo,o_halo,u,q(j,:))
+	            !call mpdata_1d(dt/real(nsteps,sp),dz2,dz2,&
+				!		rho,kp,o_halo,o_halo,u,q(:,j),ord,monotone)
 			enddo
+            !call mpdata_vec_1d(dt/real(nsteps,sp),dz2,dz2,&
+            !        rho,kp,nq,o_halo,o_halo,u,qtemp,ord,monotone)
 			if(theta_flag) then
 				! set halos
 				call set_halos_1d(kp,ord,o_halo,theta)        
@@ -146,7 +155,7 @@
     implicit none
     integer(i4b), intent(in) :: nq,kp, o_halo, updraft_type
     real(sp), intent(in) :: time, t_thresh, w_peak
-    real(sp), dimension(nq,-o_halo:kp+o_halo), intent(inout) :: q
+    real(sp), dimension(-o_halo:kp+o_halo,nq), intent(inout) :: q
     real(sp), dimension(-o_halo:kp+o_halo), intent(inout) :: theta, p, z, t,u
 
 	select case (updraft_type)
@@ -219,8 +228,8 @@
     implicit none
     real(sp), intent(in) :: time
     integer(i4b), intent(in) :: nq,nprec,kp
-    real(sp), dimension(nq,kp), intent(in) :: q
-    real(sp), dimension(nprec,kp), intent(in) :: precip
+    real(sp), dimension(kp,nq), intent(in) :: q
+    real(sp), dimension(kp,nprec), intent(in) :: precip
     real(sp), dimension(kp), intent(in) :: theta, p, z, t, u
     logical, intent(inout) :: new_file
 
@@ -345,12 +354,12 @@
 
     ! write variable: q
     call check( nf90_inq_varid(io1%ncid, "q", io1%varid ) )
-    call check( nf90_put_var(io1%ncid, io1%varid, q, &
+    call check( nf90_put_var(io1%ncid, io1%varid, transpose(q), &
                 start = (/1,1,io1%icur/)))
 
     ! write variable: precip
     call check( nf90_inq_varid(io1%ncid, "precip", io1%varid ) )
-    call check( nf90_put_var(io1%ncid, io1%varid, precip, &
+    call check( nf90_put_var(io1%ncid, io1%varid, transpose(precip), &
                 start = (/1,1,io1%icur/)))
 
     ! write variable: theta

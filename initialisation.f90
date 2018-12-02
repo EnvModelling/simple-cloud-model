@@ -65,6 +65,7 @@
 	!>@param[in] kp number of vertical levels of grid
 	!>@param[in] o_halo number of extra grid levels required for advection
 	!>@param[in] dz vertical resolution of grid
+	!>@param[inout] dz2 vertical resolution of grid
 	!>@param[inout] q, precip, theta, pressure, z, temperature, rho,u
 	!>@param[in] drop_num_init: flag to initialise number of drops where liquid water>0
 	!>@param[in] number conc of drops #/kg
@@ -75,7 +76,7 @@
     subroutine calc_profile_1d(nq,nprec,n_levels,psurf,tsurf,t_cbase, &
     						t_ctop, adiabatic_prof, adiabatic_frac, q_type,q_init, &
                              z_read,theta_read,q_read, &
-                             kp,o_halo,dz,q,precip,theta,p,z,t,rho,u, &
+                             kp,o_halo,dz,dz2,q,precip,theta,p,z,t,rho,u, &
                              drop_num_init, num_drop, ice_init,num_ice, mass_ice, &
                              microphysics_flag)
     use nrtype
@@ -96,7 +97,7 @@
     real(sp), intent(in) :: adiabatic_frac
     real(sp), intent(in) :: num_drop, num_ice, mass_ice
     ! inouts
-    real(sp), dimension(:), allocatable, intent(inout) :: theta, p, z, t, rho,u
+    real(sp), dimension(:), allocatable, intent(inout) :: theta, p, z, t, rho,u,dz2
     real(sp), dimension(:,:), allocatable, intent(inout) :: q, precip
     ! local variables:
     integer(i4b) :: i,j, iloc, AllocateStatus, istore,istore2
@@ -106,9 +107,9 @@
 	real(sp) :: htry,hmin,eps2,p1,p2,p_ctop,z11,z22,theta1
 
     ! allocate arrays
-    allocate( precip(1:nprec,1:kp), STAT = AllocateStatus)
+    allocate( precip(1:kp,1:nprec), STAT = AllocateStatus)
     if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
-    allocate( q(1:nq,-o_halo:kp+o_halo), STAT = AllocateStatus)
+    allocate( q(-o_halo:kp+o_halo,1:nq), STAT = AllocateStatus)
     if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
     allocate( theta(-o_halo:kp+o_halo), STAT = AllocateStatus)
     if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
@@ -122,13 +123,15 @@
     if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
     allocate( u(-o_halo:kp+o_halo), STAT = AllocateStatus)
     if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
+    allocate( dz2(-o_halo:kp+o_halo), STAT = AllocateStatus)
+    if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
 
 
 	precip=0._sp
 
     ! set up vertical level array
     z=dz*(/(i,i=-o_halo,kp+o_halo)/)
-
+    dz2=dz
 	q=0._sp
 	if (adiabatic_prof) then
 		! calculate the dry adiabat:
@@ -168,7 +171,7 @@
 		! adiabatic temperature
 		t(-o_halo:istore)=theta_surf*(p(-o_halo:istore)/1.e5_sp)**(ra/cp)
 		! adiabatic vapour mixing ratio
-		q(1,-o_halo:istore)=eps1*svp_liq(t_cbase)/(p1-svp_liq(t_cbase))
+		q(-o_halo:istore,1)=eps1*svp_liq(t_cbase)/(p1-svp_liq(t_cbase))
 
 
 		! now calculate the moist adiabat
@@ -215,12 +218,12 @@
 		enddo
 		istore2=i-1
 		do i=istore,istore2
-			q(1,i)=eps1*svp_liq(t(i))/ &
+			q(i,1)=eps1*svp_liq(t(i))/ &
 								(p(i)-svp_liq(t(i)))
-			q(2,i)=adiabatic_frac* &
-			    max(eps1*svp_liq(t_cbase)/(p1-svp_liq(t_cbase)) - q(1,i),0._sp)
+			q(i,2)=adiabatic_frac* &
+			    max(eps1*svp_liq(t_cbase)/(p1-svp_liq(t_cbase)) - q(i,1),0._sp)
 			if(drop_num_init .and. (microphysics_flag .eq. 2)) then
-			    q(4,i) = num_drop
+			    q(i,4) = num_drop
 			endif
 		enddo
 
@@ -241,8 +244,8 @@
 		! initialise ice crystals
 		if(ice_init .and. (microphysics_flag .eq. 1)) then
             where(t(istore:istore2).lt.ttr)
-                q(6,istore:istore2)=num_ice*mass_ice
-                q(7,istore:istore2)=num_ice
+                q(istore:istore2,6)=num_ice*mass_ice
+                q(istore:istore2,7)=num_ice
             end where
         endif
 		
@@ -264,12 +267,12 @@
 					! linear interp q fields
 					call polint(z_read(iloc:iloc+1), q_read(j,iloc:iloc+1), &
 								min(z(i),z_read(n_levels)), var, dummy)
-					q(j,i)=var
+					q(i,j)=var
 				else
 					if(q_type(j).eq.2) then
-						q(j,i) = .0_sp
+						q(i,j) = .0_sp
 					else
-						q(j,i) = 0.0_sp
+						q(i,j) = 0.0_sp
 					endif
 				endif
 			enddo

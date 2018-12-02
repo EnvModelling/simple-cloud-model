@@ -1,10 +1,12 @@
 MPM_DIR = mpm
 WMM_DIR = wmm
 BAM_DIR = wmm/bam
+SFVT_DIR = sfvt
 
 .PHONY: mpm_code cleanall
 .PHONY: wmm_code cleanall
-CLEANDIRS = $(MPM_DIR) $(WMM_DIR) $(WMM_DIR)/bam ./
+.PHONY: sfvt_code cleanall
+CLEANDIRS = $(MPM_DIR) $(WMM_DIR) $(WMM_DIR)/bam $(SFVT_DIR) ./
 
 DEBUG = -fbounds-check -g
 MPI    =#-DMPI1
@@ -33,9 +35,9 @@ FFLAGS2 =  $(DEBUG) -O3 -o
 
 
 main.exe	:  model_lib.a  main.$(OBJ) variables.$(OBJ) initialisation.$(OBJ) driver_code.$(OBJ) \
-		 advection.$(OBJ) mpm_code wmm_code
+		 advection.$(OBJ) mpm_code wmm_code sfvt_code 
 	$(FOR2) $(FFLAGS2)main.exe main.$(OBJ) variables.$(OBJ) initialisation.$(OBJ) driver_code.$(OBJ) \
-		$(MPM_DIR)/micro_lib.a $(WMM_DIR)/wmicro_lib.a  $(BAM_DIR)/bam_lib.a \
+		$(MPM_DIR)/micro_lib.a $(WMM_DIR)/wmicro_lib.a  $(BAM_DIR)/bam_lib.a $(SFVT_DIR)/model_lib.a \
 		advection.$(OBJ) -lm model_lib.a \
 		${NETCDFLIB} -I ${NETCDFMOD} ${NETCDF_LIB} $(DEBUG)
 model_lib.a	:   nrtype.$(OBJ) nr.$(OBJ) nrutil.$(OBJ) locate.$(OBJ) polint.$(OBJ) \
@@ -68,9 +70,9 @@ initialisation.$(OBJ) : initialisation.f90 mpm_code
 	$(FOR) initialisation.f90 $(FFLAGS)initialisation.$(OBJ) -I$(MPM_DIR)
 advection.$(OBJ) : advection.f90 
 	$(FOR) advection.f90 $(FFLAGS)advection.$(OBJ)
-driver_code.$(OBJ) : driver_code.f90 advection.$(OBJ) mpm_code wmm_code
+driver_code.$(OBJ) : driver_code.f90 advection.$(OBJ) mpm_code wmm_code sfvt_code
 	$(FOR) driver_code.f90  \
-		-I ${NETCDFMOD} $(FFLAGS)driver_code.$(OBJ) -I$(MPM_DIR) -I$(WMM_DIR)
+		-I ${NETCDFMOD} $(FFLAGS)driver_code.$(OBJ) -I$(MPM_DIR) -I$(WMM_DIR) -I$(SFVT_DIR)
 hygfx.$(OBJ) : hygfx.for 
 	$(FOR) hygfx.for $(FFLAGS)hygfx.$(OBJ) 
 main.$(OBJ)   : main.f90 variables.$(OBJ) initialisation.$(OBJ) driver_code.$(OBJ) \
@@ -82,6 +84,9 @@ mpm_code:
 
 wmm_code:
 	$(MAKE) -C $(WMM_DIR)
+
+sfvt_code:
+	$(MAKE) -C $(SFVT_DIR)
 
 clean: 
 	rm *.exe  *.o *.mod *~ \

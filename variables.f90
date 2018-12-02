@@ -15,7 +15,7 @@
             integer(i4b) :: n_levels
             real(sp) :: dz, dt
             real(sp), dimension(:,:), allocatable :: q, qold, precip
-            real(sp), dimension(:), allocatable :: theta, p, rho, z, t, u
+            real(sp), dimension(:), allocatable :: theta, p, rho, z, t, u, dz2
         end type grid
 
         type sounding

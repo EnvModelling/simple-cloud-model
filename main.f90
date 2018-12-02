@@ -81,7 +81,7 @@
         call calc_profile_1d(nq,nprec,n_levels_s,psurf,tsurf,t_cbase,t_ctop, &
         					adiabatic_prof, adiabatic_frac, &
         					q_type,q_init, z_read,theta_read, &
-                            q_read,kp,o_halo,dz,grid1%q, grid1%precip, &
+                            q_read,kp,o_halo,dz,grid1%dz2,grid1%q, grid1%precip, &
                             grid1%theta, grid1%p, &
                             grid1%z,grid1%t,grid1%rho,grid1%u, &
                             drop_num_init, num_drop, ice_init, num_ice, mass_ice, &
@@ -98,7 +98,7 @@
         io1%new_file=.true.
         call model_driver_1d(nq,nprec,kp,ord,o_halo,runtime,dt,updraft_type,t_thresh,w_peak, &
         					grid1%q,grid1%precip,grid1%theta, &
-                            grid1%p,dz,grid1%z,grid1%t,grid1%rho,grid1%u,io1%new_file, &
+                            grid1%p,dz,grid1%dz2,grid1%z,grid1%t,grid1%rho,grid1%u,io1%new_file, &
                             micro_init,monotone,microphysics_flag,hm_flag,theta_flag, &
                             mass_ice)
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
