@@ -8,3 +8,5 @@ doxygen
 *.tmp2
 *.run2
 namelist.andreas
+*.dSYM
+
