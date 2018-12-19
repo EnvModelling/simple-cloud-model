@@ -257,6 +257,15 @@
 			if(time.ge.(t_thresh+t_thresh2)) then
 				u(:)=0._sp
 			endif
+		case(3)			
+		    if(time.lt.t_thresh) then
+				u(:)=w_peak*sin(2._sp*pi*time/t_thresh)
+			elseif((time.gt.(t_thresh+t_thresh2)).and. &
+			    (time.lt.(2._sp*t_thresh+t_thresh2))) then
+				u(:)=w_peak*sin(2._sp*pi*(time-(t_thresh+t_thresh2))/t_thresh)
+			else
+				u(:)=0._sp
+			endif
 		case default
 			print *,'select defined updraft_type ',updraft_type
 	end select
