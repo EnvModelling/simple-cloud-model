@@ -12,10 +12,10 @@ tot_precip_hm_off=zeros(length(ARRAY1),length(ARRAY2),length(ARRAY3));
 
 figure('name','hm plot');
 l=1;
-for k=4:4 %length(ARRAY3)
+for k=1:length(ARRAY3)
     for j=1:length(ARRAY2)
-        for i=1:1 %length(ARRAY1)
-            subplot(1,1,l);
+        for i=2:2 %length(ARRAY1)
+            subplot(3,2,l);
             % first read the hm on runs
             nc=netcdf(['/tmp/output_',num2str(i-1),'_',num2str(j-1),'_',num2str(k-1),'_hm_on.nc']);
             precip1=nc{'precip'}(:,:,1);
@@ -28,16 +28,16 @@ for k=4:4 %length(ARRAY3)
             l=l+1;
             hold on;
             [c,h]=contour(nc{'time'}(:)./60,nc{'z'}(1,:)./1000,nc{'q'}(:,:,2)',linspace(1e-5,1e-3,10),'k');
-            caxis([-15 15]);
-            if(l>13)
+            caxis([-0.5 0.5]);
+            if(l>6)
                 xlabel('time (mins)');
             end
-            if(mod(l+2,4)==0)
+            %if(mod(l+2,4)==0)
                 ylabel({'z (km)',['INP: ',num2str(ARRAY3(k)./1000),' L^{-1}']})
-            end
-            if(l<=5)
+            %end
+            %if(l<=5)
                 text(0.1,0.9,{['Cloud-base temp: '],[num2str(ARRAY1(i)-273),' degC']},'fontsize',7,'units','normalized')
-            end
+            %end
             close(nc);
         end
     end

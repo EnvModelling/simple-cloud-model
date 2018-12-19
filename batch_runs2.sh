@@ -17,7 +17,7 @@ for (( i=0;i<$ELEMENTS1;i++)); do
  			sed -e "s/*260./${ARRAY2[${j}]}/" namelist.tmp > namelist.tmp2
  			sed -e "s/*1000./${ARRAY3[${k}]}/" namelist.tmp2 > namelist.run
  			
- 			./main.exe namelist.run > std.out
+ 			./main.exe namelist.run > /tmp/std.out
  
  			mv /tmp/output.nc /tmp/output_${i}_${j}_${k}_hm_on.nc
  			
