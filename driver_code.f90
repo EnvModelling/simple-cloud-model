@@ -16,6 +16,8 @@
 	!> then advects particles
 	!>@param[in] nq: number of q fields
 	!>@param[in] nprec: number of precipitation arrays
+	!>@param[in] ncat: number of categories
+	!>@param[in] n_mode: number of modes
 	!>@param[in] kp: number of vertical levels
 	!>@param[in] ord: order of advection scheme
 	!>@param[in] o_halo: halos required for advection scheme
@@ -24,34 +26,47 @@
 	!>@param[in] updraft_type - updraft_type
 	!>@param[in] t_thresh - t_thresh
 	!>@param[in] w_peak - w_peak
+	!>@param[in] c_s, c_e: start and end indices for a category
+	!>@param[in] inc, iqc: indices for cloud number and mass
+	!>@param[in] cat_c, cat_r: category index for cloud and rain
+	!>@param[in] q_name: name of categories
 	!>@param[in] dz,dz2 - grid spacing
 	!>@param[inout] q, theta, pressure, z, temperature, rho, u
 	!>@param[inout] precip
 	!>@param[inout] new_file
 	!>@param[inout] micro_init - flag to initialise microphysics
+	!>@param[in] advection_scheme
 	!>@param[in] monotone - flag for monotonic advection
 	!>@param[in] microphysics_flag - flag for calling microphysics
 	!>@param[in] hm_flag - flag for switching on / off hm process
 	!>@param[in] theta_flag - flag for advecting theta dry
 	!>@param[in] mass_ice - mass of a single ice crystal (override)
-    subroutine model_driver_1d(nq,nprec,kp,ord,o_halo,runtime, &
+    subroutine model_driver_1d(nq,nprec,ncat, n_mode, kp,ord,o_halo,runtime, &
                                dt,updraft_type,t_thresh,w_peak, &
-                               q,precip,theta,p,dz,dz2,z,t,rho,u,new_file,micro_init,monotone, &
+                               c_s, c_e, inc, iqc, cat_c, cat_r, &
+                               q_name, &
+                               q,precip,theta,p,dz,dz2,z,t,rho,u,new_file,micro_init,&
+                               advection_scheme, monotone, &
                                microphysics_flag,hm_flag,theta_flag,mass_ice)
 
     use nrtype
     use advection
-    use advection_s_1d
+    use advection_s_1d, only : first_order_upstream_1d, mpdata_1d, mpdata_vec_1d
     use micro_module
     use w_micro_module 
+    use p_micro_module
 
     implicit none
-    integer(i4b), intent(in) :: nq,nprec,kp, ord, o_halo, updraft_type
+    integer(i4b), intent(in) :: nq,nprec,ncat, &
+                                kp, ord, o_halo, updraft_type, advection_scheme, &
+                                inc, iqc, n_mode, cat_c, cat_r    
     real(sp), intent(in) :: runtime, dt, dz, t_thresh,w_peak
-    real(sp), dimension(-o_halo:kp+o_halo,nq), intent(inout) :: q
+    integer(i4b), dimension(ncat), intent(in) :: c_s, c_e
+    character(len=20), dimension(nq) :: q_name
+    real(sp), dimension(-o_halo+1:kp+o_halo,nq), intent(inout) :: q
     real(sp), dimension(1:kp,nprec), intent(inout) :: precip
-    real(sp), dimension(-o_halo:kp+o_halo), intent(in) :: dz2
-    real(sp), dimension(-o_halo:kp+o_halo), intent(inout) :: theta, p, z, t,rho,u
+    real(sp), dimension(-o_halo+1:kp+o_halo), intent(in) :: dz2
+    real(sp), dimension(-o_halo+1:kp+o_halo), intent(inout) :: theta, p, z, t,rho,u
     logical, intent(inout) :: new_file, micro_init
     logical, intent(in) :: monotone,hm_flag,theta_flag
     integer(i4b), intent(in) :: microphysics_flag
@@ -59,7 +74,7 @@
 
     ! local variables
     integer(i4b) :: nt, i, j, nsteps, iter
-    real(sp), dimension(-o_halo:kp+o_halo,nq) :: qtemp
+    real(sp), dimension(-o_halo+1:kp+o_halo,nq) :: qtemp
     real(sp) :: time
 
 
@@ -75,7 +90,8 @@
     
     
         ! output:
-        call output_1d(time,nq,nprec,kp,q(1:kp,:),precip(1:kp,:),theta(1:kp),p(1:kp), &
+        call output_1d(time,nq,nprec,kp,q_name, &
+                    q(1:kp,:),precip(1:kp,:),theta(1:kp),p(1:kp), &
                        z(1:kp),t(1:kp),u(1:kp),new_file)
 
 
@@ -84,29 +100,88 @@
         ! advection                                                                      !
 		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		nsteps=ceiling(dt/(0.7_sp*dz)*(max(maxval(u),abs(minval(u)))))
-		do iter=1,nsteps
-			do j=1,nq
-				! set halos
-				call set_halos_1d(kp,ord,o_halo,q(:,j))            
-				! advection
-				call bott_scheme_1d(kp,ord,o_halo,dt/real(nsteps,sp), &
-									dz,z,u,q(:,j),monotone)
-				!call first_order_upstream_1d(dt/real(nsteps,sp),dz2, &
-				!                            rho,kp,o_halo,o_halo,u,q(j,:))
-	            !call mpdata_1d(dt/real(nsteps,sp),dz2,dz2,&
-				!		rho,kp,o_halo,o_halo,u,q(:,j),ord,monotone)
-			enddo
-            !call mpdata_vec_1d(dt/real(nsteps,sp),dz2,dz2,&
-            !        rho,kp,nq,o_halo,o_halo,u,qtemp,ord,monotone)
-			if(theta_flag) then
-				! set halos
-				call set_halos_1d(kp,ord,o_halo,theta)        
-				! advection
-				call bott_scheme_1d(kp,ord,o_halo,dt/real(nsteps,sp),&
-									dz,z,u,theta,monotone)
-			endif
-		enddo
-		
+		select case (advection_scheme)
+			case (0) ! upstream
+				do iter=1,nsteps
+					do j=1,nq
+                        ! set halos
+                        call set_halos_1d(kp,ord,o_halo,q(:,j))            
+						! advection
+                        call first_order_upstream_1d(dt/real(nsteps,sp),dz2, &
+                                                    rho,kp,o_halo,o_halo,u,q(:,j))
+					enddo
+					if(theta_flag) then
+						! set halos
+                        call set_halos_1d(kp,ord,o_halo,theta) 
+						! advection
+						call first_order_upstream_1d(dt/real(nsteps,sp), &
+								dz2,rho,kp,o_halo,o_halo, u, theta(:))
+					endif
+				enddo
+			case(1) ! bott
+                do iter=1,nsteps
+                    do j=1,nq
+                        ! set halos
+                        call set_halos_1d(kp,ord,o_halo,q(:,j))            
+                        ! advection
+                        call bott_scheme_1d(kp,ord,o_halo,dt/real(nsteps,sp), &
+                                            dz,z,u,q(:,j),monotone)
+                    enddo
+                    if(theta_flag) then
+                        ! set halos
+                        call set_halos_1d(kp,ord,o_halo,theta)        
+                        ! advection
+                        call bott_scheme_1d(kp,ord,o_halo,dt/real(nsteps,sp),&
+                                            dz,z,u,theta,monotone)
+                    endif
+                enddo
+			
+			case(2) ! mpdata
+                do iter=1,nsteps
+                    do j=1,nq
+                        ! set halos
+                        call set_halos_1d(kp,ord,o_halo,q(:,j))            
+                        ! advection
+                        call mpdata_1d(dt/real(nsteps,sp),dz2,dz2,&
+                        	rho,kp,o_halo,o_halo,u,q(:,j),ord,monotone)
+                    enddo
+                    !call mpdata_vec_1d(dt/real(nsteps,sp),dz2,dz2,&
+                    !        rho,kp,nq,o_halo,o_halo,u,qtemp,ord,monotone)
+                    if(theta_flag) then
+                        ! set halos
+                        call set_halos_1d(kp,ord,o_halo,theta)        
+                        ! advection
+                        call mpdata_1d(dt/real(nsteps,sp),dz2,dz2,&
+                        	rho,kp,o_halo,o_halo,u,theta,ord,monotone)
+                    endif
+                enddo
+			case(3) ! mpdata sfvt
+				do iter=1,nsteps
+					do j=1,nq
+						! set halos
+						call set_halos_1d(kp,ord,o_halo,q(:,j))            						
+					enddo
+
+					do j=1,ncat
+						! advection sfvt
+						call mpdata_vec_1d(dt/real(nsteps,sp),dz2,dz2,&
+						    rho,kp,c_e(j)-c_s(j)+1,o_halo,o_halo,u,&
+						    q(:,c_s(j):c_e(j)),4,monotone)
+                    enddo
+                    
+					if(theta_flag) then
+						! set halos
+						call set_halos_1d(kp,ord,o_halo,theta)        
+						! advection
+						call mpdata_1d(dt/real(nsteps,sp),dz2,dz2,&
+						    rho,kp,o_halo,o_halo,u,theta(:),4,monotone)
+					endif
+				enddo
+			
+			case default
+				print *, 'error'
+				stop
+		end select		
 		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
@@ -118,6 +193,11 @@
 			! calculate precipitation diagnostics
         else if (microphysics_flag .eq. 2) then
 			call w_microphysics_1d(nq,kp,o_halo,dt,dz,q,precip,theta,p, &
+						   z,t,rho,u,micro_init,hm_flag,mass_ice,theta_flag)
+			! calculate precipitation diagnostics
+        else if (microphysics_flag .eq. 3) then
+			call p_microphysics_1d(nq,ncat,n_mode,c_s,c_e, inc, iqc,&
+			                cat_c, cat_r, kp,o_halo,dt,dz2,q,precip,theta,p, &
 						   z,t,rho,u,micro_init,hm_flag,mass_ice,theta_flag)
 			! calculate precipitation diagnostics
 		endif       
@@ -155,8 +235,8 @@
     implicit none
     integer(i4b), intent(in) :: nq,kp, o_halo, updraft_type
     real(sp), intent(in) :: time, t_thresh, w_peak
-    real(sp), dimension(-o_halo:kp+o_halo,nq), intent(inout) :: q
-    real(sp), dimension(-o_halo:kp+o_halo), intent(inout) :: theta, p, z, t,u
+    real(sp), dimension(-o_halo+1:kp+o_halo,nq), intent(inout) :: q
+    real(sp), dimension(-o_halo+1:kp+o_halo), intent(inout) :: theta, p, z, t,u
 
 	select case (updraft_type)
 		case(0)
@@ -200,12 +280,12 @@
     implicit none
     ! arguments:
     integer(i4b), intent(in) :: kp, ord, o_halo
-    real(sp), dimension(-o_halo:kp+o_halo), intent(inout) :: psi
+    real(sp), dimension(-o_halo+1:kp+o_halo), intent(inout) :: psi
 
 	! top
 	psi(kp+1:kp+o_halo)=psi(kp)
 	! bottom
-	psi(-o_halo:0)=psi(1)
+	psi(-o_halo+1:0)=psi(1)
 	
 	end subroutine set_halos_1d
 
@@ -217,9 +297,11 @@
 	!>@param[in] nq number of q fields
 	!>@param[in] nprec number of precipitation fields
 	!>@param[in] kp number of vertical levels
+	!>@param[in] q_name: name of q-variables
 	!>@param[in] q, precip, theta, pressure, z, temperature,u
 	!>@param[inout] new_file
-    subroutine output_1d(time,nq,nprec,kp,q,precip,theta,p,z,t,u,new_file)
+    subroutine output_1d(time,nq,nprec,kp,q_name, &
+                        q,precip,theta,p,z,t,u,new_file)
 
     use nrtype
     use netcdf
@@ -228,6 +310,7 @@
     implicit none
     real(sp), intent(in) :: time
     integer(i4b), intent(in) :: nq,nprec,kp
+    character(len=20), dimension(nq) :: q_name
     real(sp), dimension(kp,nq), intent(in) :: q
     real(sp), dimension(kp,nprec), intent(in) :: precip
     real(sp), dimension(kp), intent(in) :: theta, p, z, t, u
@@ -245,6 +328,7 @@
         call check( nf90_def_dim(io1%ncid, "nq", nq, io1%nq_dimid) )
         call check( nf90_def_dim(io1%ncid, "nprec", nprec, io1%nprec_dimid) )
         call check( nf90_def_dim(io1%ncid, "kp", kp, io1%k_dimid) )
+        call check( nf90_def_dim(io1%ncid, "l_q_names", 20, io1%lq_dimid) )
 
 
         ! close the file, freeing up any internal netCDF resources
@@ -257,6 +341,9 @@
         ! define mode
         call check( nf90_redef(io1%ncid) )
 
+        ! define variable: q_names
+        call check( nf90_def_var(io1%ncid, "q_names", NF90_CHAR, &
+            (/io1%lq_dimid,io1%nq_dimid/), io1%varid) )
 
 
 
@@ -311,7 +398,7 @@
 
         ! define variable: z
         call check( nf90_def_var(io1%ncid, "z", NF90_DOUBLE, &
-                    (/io1%k_dimid, io1%x_dimid/), io1%varid) )
+                    (/io1%k_dimid/), io1%varid) )
         ! get id to a_dimid
         call check( nf90_inq_varid(io1%ncid, "z", io1%a_dimid) )
         ! units
@@ -342,6 +429,19 @@
 
         new_file=.false.
 
+		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		! write z data to file                                           !
+		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        call check( nf90_open(outputfile, NF90_WRITE, io1%ncid) )
+		call check( nf90_inq_varid(io1%ncid, "q_names", io1%varid ) )
+		call check( nf90_put_var(io1%ncid, io1%varid, q_name, start = (/1,1/)))
+        ! write variable: z
+        call check( nf90_inq_varid(io1%ncid, "z", io1%varid ) )
+        call check( nf90_put_var(io1%ncid, io1%varid, z, &
+                    start = (/1/)))
+
+		call check( nf90_close(io1%ncid) )
+
     endif
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! write data to file                                                       !
@@ -370,11 +470,6 @@
     ! write variable: p
     call check( nf90_inq_varid(io1%ncid, "p", io1%varid ) )
     call check( nf90_put_var(io1%ncid, io1%varid, p, &
-                start = (/1,io1%icur/)))
-
-    ! write variable: z
-    call check( nf90_inq_varid(io1%ncid, "z", io1%varid ) )
-    call check( nf90_put_var(io1%ncid, io1%varid, z, &
                 start = (/1,io1%icur/)))
 
     ! write variable: t

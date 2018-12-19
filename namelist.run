@@ -6,7 +6,8 @@
 	dt=10.,
 	nq=9, ! number of q variables
 	nprec=4, ! number of precipitation variables
-	ord=8,		     ! order of advection for bott scheme (except precip)
+	advection_scheme=1, ! 0=upstream, 1=bott, 2=mpdata from sub-tree, 3=mpdata sfvt
+	ord=3,		     ! order of advection for bott scheme (except precip)
 	halo=0,
 	monotone=.true.,    ! monotone advection (except precip)
 	microphysics_flag=1, ! flag for microphysics: 0 (no micro); 

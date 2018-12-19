@@ -6,6 +6,7 @@
 	dt=10.,
 	nq=5, ! number of q variables
 	nprec=1, ! number of precipitation variables
+	advection_scheme=1, ! 0=upstream, 1=bott, 2=mpdata from sub-tree, 3=mpdata sfvt
 	ord=8,		     ! order of advection for bott scheme (except precip)
 	halo=0,
 	monotone=.true.,    ! monotone advection (except precip)

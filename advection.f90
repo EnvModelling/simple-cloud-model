@@ -29,13 +29,13 @@
     ! arguments:
     integer(i4b), intent(in) :: kp, ord, o_halo
     real(sp), intent(in) :: dt,dx
-    real(sp), dimension(-o_halo:kp+o_halo), intent(in) :: x,u
+    real(sp), dimension(-o_halo+1:kp+o_halo), intent(in) :: x,u
     logical, intent(in) :: monotone
-    real(sp), dimension(-o_halo:kp+o_halo), intent(inout) :: psi
+    real(sp), dimension(-o_halo+1:kp+o_halo), intent(inout) :: psi
 
     ! locals:
 	real(sp), dimension(ord+1) :: a_coeff01, a_coeff02
-	real(sp), dimension(-o_halo:kp+o_halo) :: f_plus, f_plus_mon,&
+	real(sp), dimension(-o_halo+1:kp+o_halo) :: f_plus, f_plus_mon,&
 									f_minus,f_minus_mon, fj, psi_old, u1
 	real(sp) :: cp_j, cp_jp1, cp_jm1, cp_jm2, cm_j, cm_jm1, cm_jp1, &
 	dp_jm05=0._sp, dp_jp05=0._sp, dp_jp15=0._sp, dm_jp05=0._sp, dm_jm05=0._sp, &
@@ -238,7 +238,7 @@
 	subroutine coeff_bott_scheme_1d(q,a_coeff,j,ord,o_halo)
 		use nrtype
 		implicit none
-		real(sp), intent(in), dimension(-o_halo:kp+1+o_halo) :: q
+		real(sp), intent(in), dimension(-o_halo+1:kp+1+o_halo) :: q
 		real(sp), intent(inout), dimension(1:ord+1) :: a_coeff
 		integer(i4b), intent(in) :: j,ord,o_halo
 

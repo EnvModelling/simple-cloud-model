@@ -12,10 +12,19 @@
     implicit none
         type grid
             ! variables for grid
-            integer(i4b) :: n_levels
+            integer(i4b) :: n_levels,nq,ncat, nprec, &
+                            iqv, iqc, iqr, iqi, iqs, iqg, inc, inr, ini, ins, ing, &
+                            cat_c, cat_r
             real(sp) :: dz, dt
             real(sp), dimension(:,:), allocatable :: q, qold, precip
             real(sp), dimension(:), allocatable :: theta, p, rho, z, t, u, dz2
+            
+            
+            ! point to the start and end of a category
+            integer(i4b), dimension(:), allocatable :: c_s, c_e
+            character(len=20), dimension(:), allocatable :: q_name
+            integer(i4b), dimension(:), allocatable :: q_type
+            integer(i4b) :: n_mode
         end type grid
 
         type sounding
@@ -30,7 +39,8 @@
             ! variables for io
             integer(i4b) :: ncid, varid, x_dimid, y_dimid, z_dimid, &
                             dimids(2), a_dimid, xx_dimid, yy_dimid, &
-                            zz_dimid, i_dimid, j_dimid, k_dimid, nq_dimid, nprec_dimid
+                            zz_dimid, i_dimid, j_dimid, k_dimid, nq_dimid, &
+                            lq_dimid, nprec_dimid
             integer(i4b) :: icur=1
             logical :: new_file=.true.
         end type io
@@ -49,7 +59,7 @@
         real(sp) :: adiabatic_frac
         logical :: monotone=.true.,theta_flag=.false., &
         			hm_flag=.true.
-        integer(i4b) :: microphysics_flag=0
+        integer(i4b) :: advection_scheme=0,microphysics_flag=0
         character (len=200) :: bam_nmlfile = ' '
 
         ! variables for model

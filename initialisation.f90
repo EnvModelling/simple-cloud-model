@@ -66,7 +66,9 @@
 	!>@param[in] o_halo number of extra grid levels required for advection
 	!>@param[in] dz vertical resolution of grid
 	!>@param[inout] dz2 vertical resolution of grid
-	!>@param[inout] q, precip, theta, pressure, z, temperature, rho,u
+	!>@param[inout] q, 
+	!>@param[in] iqv,iqc,inc,iqi,ini
+	!>@param[inout] precip, theta, pressure, z, temperature, rho,u
 	!>@param[in] drop_num_init: flag to initialise number of drops where liquid water>0
 	!>@param[in] number conc of drops #/kg
 	!>@param[in] ice_init: flag to initialise ice crystals in model
@@ -76,7 +78,9 @@
     subroutine calc_profile_1d(nq,nprec,n_levels,psurf,tsurf,t_cbase, &
     						t_ctop, adiabatic_prof, adiabatic_frac, q_type,q_init, &
                              z_read,theta_read,q_read, &
-                             kp,o_halo,dz,dz2,q,precip,theta,p,z,t,rho,u, &
+                             kp,o_halo,dz,dz2,q,&
+                             iqv, iqc, inc, iqi, ini, &
+                             precip,theta,p,z,t,rho,u, &
                              drop_num_init, num_drop, ice_init,num_ice, mass_ice, &
                              microphysics_flag)
     use nrtype
@@ -99,6 +103,8 @@
     ! inouts
     real(sp), dimension(:), allocatable, intent(inout) :: theta, p, z, t, rho,u,dz2
     real(sp), dimension(:,:), allocatable, intent(inout) :: q, precip
+    integer(i4b), intent(in) :: iqv, iqc, inc, iqi, ini
+
     ! local variables:
     integer(i4b) :: i,j, iloc, AllocateStatus, istore,istore2
     real(sp) :: var, dummy
@@ -109,33 +115,33 @@
     ! allocate arrays
     allocate( precip(1:kp,1:nprec), STAT = AllocateStatus)
     if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
-    allocate( q(-o_halo:kp+o_halo,1:nq), STAT = AllocateStatus)
+    allocate( q(-o_halo+1:kp+o_halo,1:nq), STAT = AllocateStatus)
     if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
-    allocate( theta(-o_halo:kp+o_halo), STAT = AllocateStatus)
+    allocate( theta(-o_halo+1:kp+o_halo), STAT = AllocateStatus)
     if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
-    allocate( p(-o_halo:kp+o_halo), STAT = AllocateStatus)
+    allocate( p(-o_halo+1:kp+o_halo), STAT = AllocateStatus)
     if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
-    allocate( z(-o_halo:kp+o_halo), STAT = AllocateStatus)
+    allocate( z(-o_halo+1:kp+o_halo), STAT = AllocateStatus)
     if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
-    allocate( t(-o_halo:kp+o_halo), STAT = AllocateStatus)
+    allocate( t(-o_halo+1:kp+o_halo), STAT = AllocateStatus)
     if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
-    allocate( rho(-o_halo:kp+o_halo), STAT = AllocateStatus)
+    allocate( rho(-o_halo+1:kp+o_halo), STAT = AllocateStatus)
     if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
-    allocate( u(-o_halo:kp+o_halo), STAT = AllocateStatus)
+    allocate( u(-o_halo+1:kp+o_halo), STAT = AllocateStatus)
     if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
-    allocate( dz2(-o_halo:kp+o_halo), STAT = AllocateStatus)
+    allocate( dz2(-o_halo+1:kp+o_halo), STAT = AllocateStatus)
     if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
 
 
 	precip=0._sp
 
     ! set up vertical level array
-    z=dz*(/(i,i=-o_halo,kp+o_halo)/)
+    z=dz*(/(i,i=-o_halo,kp+o_halo-1)/)
     dz2=dz
 	q=0._sp
 	if (adiabatic_prof) then
 		! calculate the dry adiabat:
-		theta_surf=tsurf*(1e5_sp/psurf)**(ra/cp)
+		theta_surf=tsurf*(1.e5_sp/psurf)**(ra/cp)
 		p1=psurf
 		z1=0._sp
 		p2=1.e5_sp*(t_cbase/theta_surf)**(cp/ra)
@@ -146,7 +152,7 @@
 		
 		! integrate going downwards - dry adiabatic layer
 		p(1)=psurf
-		do i=1,-o_halo+1,-1
+		do i=1,-o_halo+2,-1
 			z11=z(i)
 			z22=z(i-1)
 			p11=p(i)
@@ -169,9 +175,9 @@
 		enddo
 		istore=i-1
 		! adiabatic temperature
-		t(-o_halo:istore)=theta_surf*(p(-o_halo:istore)/1.e5_sp)**(ra/cp)
+		t(-o_halo+1:istore)=theta_surf*(p(-o_halo+1:istore)/1.e5_sp)**(ra/cp)
 		! adiabatic vapour mixing ratio
-		q(-o_halo:istore,1)=eps1*svp_liq(t_cbase)/(p1-svp_liq(t_cbase))
+		q(-o_halo+1:istore,iqv)=eps1*svp_liq(t_cbase)/(p1-svp_liq(t_cbase))
 
 
 		! now calculate the moist adiabat
@@ -192,7 +198,7 @@
 			(p(istore)-dz*p(istore)/ra/t_ctop)/1.e5_sp)**(ra/cp) ! a temperature colder than
 		                                                   ! next level
 
-		t(istore)=zbrent(calc_theta_q,t(istore),t_ctop,1.e-5_sp)
+		t(istore)=zbrent(calc_theta_q,1.01_sp*t(istore),t_ctop,1.e-5_sp)
 
 		t1old=t(istore)
 		do i=istore,kp+o_halo-1
@@ -210,7 +216,7 @@
 			!print *,t1old,p11,z11,z22
 			call odeint(p11,z11,z22,eps2,htry,hmin,hydrostatic2a,rkqs)
 			p(i+1)=p11(1)
-			t(i+1)=theta_surf*(p(i+1)/1e5_sp)**(ra/cp)
+			t(i+1)=theta_surf*(p(i+1)/1.e5_sp)**(ra/cp)
 			t1old=t(i)
 			p111=p(i+1)
 			t(i+1)=zbrent(calc_theta_q,t(i+1),t1old*1.01_sp,1.e-5_sp)
@@ -218,12 +224,13 @@
 		enddo
 		istore2=i-1
 		do i=istore,istore2
-			q(i,1)=eps1*svp_liq(t(i))/ &
+			q(i,iqv)=eps1*svp_liq(t(i))/ &
 								(p(i)-svp_liq(t(i)))
-			q(i,2)=adiabatic_frac* &
-			    max(eps1*svp_liq(t_cbase)/(p1-svp_liq(t_cbase)) - q(i,1),0._sp)
-			if(drop_num_init .and. (microphysics_flag .eq. 2)) then
-			    q(i,4) = num_drop
+			q(i,iqc)=adiabatic_frac* &
+					max(q(1,iqv)-eps1*svp_liq(t(i))/(p(i)-svp_liq(t(i))) ,0._sp)
+			if(drop_num_init .and. &
+			    ((microphysics_flag .eq. 2) .or. (microphysics_flag .eq. 3))) then
+			    q(i,inc) = num_drop
 			endif
 		enddo
 
@@ -244,14 +251,14 @@
 		! initialise ice crystals
 		if(ice_init .and. (microphysics_flag .eq. 1)) then
             where(t(istore:istore2).lt.ttr)
-                q(istore:istore2,6)=num_ice*mass_ice
-                q(istore:istore2,7)=num_ice
+                q(istore:istore2,iqi)=num_ice*mass_ice
+                q(istore:istore2,ini)=num_ice
             end where
         endif
 		
 	else
 		! use linear interpolation to put sounding on grid:
-		do i=-o_halo,kp+o_halo
+		do i=-o_halo+1,kp+o_halo
 			iloc=locate(z_read(1:n_levels),z(i))
 			iloc=min(n_levels-1,iloc)
 			iloc=max(1,iloc)
@@ -288,7 +295,7 @@
 			endif
 		enddo
 
-		do i=0,-o_halo,-1
+		do i=0,-o_halo+1,-1
 			! solve the hydrostatic equation to get pressure and temperature
 			p(i)=p(i+1)+dz*p(i+1)/(ra*t(i+1))*grav
 			t(i)=theta(i)*(p(i)/psurf)**(ra/cp)
