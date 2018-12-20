@@ -1,9 +1,9 @@
  &run_vars
 	outputfile = '/tmp/output.nc',
 	runtime=3000.,
-	kp=100,
-	dz=100.,
-	dt=10.,
+	kp=1000,
+	dz=10.,
+	dt=1.,
 	nq=5, ! number of q variables
 	nprec=1, ! number of precipitation variables
 	advection_scheme=3, ! 0=upstream, 1=bott, 2=mpdata from sub-tree, 3=mpdata sfvt
@@ -23,13 +23,13 @@
 	updraft_type=3,
 	t_thresh=600.0,
 	t_thresh2=200.0,
-	w_peak=1.0/
+	w_peak=0.0/
  &run_vars2
     q_type = 0,1,1,2,2, ! the type of q-variable. 0 vapour, 1 mass, 2 number conc.
     q_init =.true.,.false.,.false.,.false./ ! whether to initialise or now	
  &sounding_spec  ! environmental sounding parameters
  	adiabatic_prof=.true.,
- 	adiabatic_frac=.2,
+ 	adiabatic_frac=1.,
  	psurf=100000.,
  	tsurf=300.,
  	t_cbase=290.,

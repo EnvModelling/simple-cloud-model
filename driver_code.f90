@@ -76,7 +76,12 @@
     integer(i4b) :: nt, i, j, nsteps, iter
     real(sp), dimension(-o_halo+1:kp+o_halo,nq) :: qtemp
     real(sp) :: time
+    real(sp), dimension(-o_halo+1:kp+o_halo) :: rhoa
 
+    
+    ! fudge because dynamics is solenoidal for rhoa=const
+    rhoa=1._sp
+    rhoa=rho
 
     nt=ceiling(runtime / real(dt,kind=sp) )
     do i=1,nt
@@ -108,14 +113,14 @@
                         call set_halos_1d(kp,ord,o_halo,q(:,j))            
 						! advection
                         call first_order_upstream_1d(dt/real(nsteps,sp),dz2, &
-                                                    rho,kp,o_halo,o_halo,u,q(:,j))
+                                                    rhoa,kp,o_halo,o_halo,u,q(:,j))
 					enddo
 					if(theta_flag) then
 						! set halos
                         call set_halos_1d(kp,ord,o_halo,theta) 
 						! advection
 						call first_order_upstream_1d(dt/real(nsteps,sp), &
-								dz2,rho,kp,o_halo,o_halo, u, theta(:))
+								dz2,rhoa,kp,o_halo,o_halo, u, theta(:))
 					endif
 				enddo
 			case(1) ! bott
@@ -143,7 +148,7 @@
                         call set_halos_1d(kp,ord,o_halo,q(:,j))            
                         ! advection
                         call mpdata_1d(dt/real(nsteps,sp),dz2,dz2,&
-                        	rho,kp,o_halo,o_halo,u,q(:,j),ord,monotone)
+                        	rhoa,kp,o_halo,o_halo,u,q(:,j),ord,monotone)
                     enddo
                     !call mpdata_vec_1d(dt/real(nsteps,sp),dz2,dz2,&
                     !        rho,kp,nq,o_halo,o_halo,u,qtemp,ord,monotone)
@@ -152,7 +157,7 @@
                         call set_halos_1d(kp,ord,o_halo,theta)        
                         ! advection
                         call mpdata_1d(dt/real(nsteps,sp),dz2,dz2,&
-                        	rho,kp,o_halo,o_halo,u,theta,ord,monotone)
+                        	rhoa,kp,o_halo,o_halo,u,theta,ord,monotone)
                     endif
                 enddo
 			case(3) ! mpdata sfvt
@@ -165,7 +170,7 @@
 					do j=1,ncat
 						! advection sfvt
 						call mpdata_vec_1d(dt/real(nsteps,sp),dz2,dz2,&
-						    rho,kp,c_e(j)-c_s(j)+1,o_halo,o_halo,u,&
+						    rhoa,kp,c_e(j)-c_s(j)+1,o_halo,o_halo,u,&
 						    q(:,c_s(j):c_e(j)),4,monotone)
                     enddo
                     
@@ -174,7 +179,7 @@
 						call set_halos_1d(kp,ord,o_halo,theta)        
 						! advection
 						call mpdata_1d(dt/real(nsteps,sp),dz2,dz2,&
-						    rho,kp,o_halo,o_halo,u,theta(:),4,monotone)
+						    rhoa,kp,o_halo,o_halo,u,theta(:),4,monotone)
 					endif
 				enddo
 			

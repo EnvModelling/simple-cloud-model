@@ -1,8 +1,8 @@
  &run_vars
 	outputfile = '/tmp/output.nc',
 	runtime=3000.,
-	kp=100,
-	dz=100.,
+	kp=1000,
+	dz=10.,
 	dt=10.,
 	nq=9, ! number of q variables
 	nprec=4, ! number of precipitation variables
@@ -14,7 +14,7 @@
 	                     ! 1 (bulk scheme #1); 2 (bulk scheme #2)
 	bam_nmlfile='wmm/bam/namelist.in', ! filename of bam namelist
 	hm_flag=.true.,	     ! switch hm process on / off
-	theta_flag=.false.,  ! advect theta
+	theta_flag=.true.,  ! advect theta
 	drop_num_init=.true., ! only works for microphysics_flag=2
 	num_drop=10.e6, ! initial number concentration of drops
 	ice_init=.true.,
