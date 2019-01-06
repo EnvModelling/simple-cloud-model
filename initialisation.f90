@@ -136,7 +136,7 @@
 	precip=0._sp
 
     ! set up vertical level array
-    z=dz*(/(i,i=-o_halo,kp+o_halo-1)/)
+    z=dz*(/(i,i=-o_halo,kp+o_halo-1)/) ! note this is actually zn
     dz2=dz
 	q=0._sp
 	if (adiabatic_prof) then
