@@ -151,9 +151,7 @@
 	real(sp), dimension(-r_h+1:kp+r_h,-r_h+1:jp+r_h,-l_h+1:ip+r_h), target :: & 
 		u_store1, u_store2
 	real(sp), dimension(-r_h+1:kp+r_h,-l_h+1:jp+r_h,-r_h+1:ip+r_h), target :: &
-		v_store1
-	real(sp), dimension(-r_h+1:kp+r_h,-l_h+1:jp+r_h,-r_h+1:ip+r_h), target :: &
-		v_store2
+		v_store1, v_store2
 	real(sp), dimension(-l_h+1:kp+r_h,-r_h+1:jp+r_h,-r_h+1:ip+r_h), target :: &
 		w_store1, w_store2
 	real(sp), dimension(-r_h+1:kp+r_h,-r_h+1:jp+r_h,-r_h+1:ip+r_h), target :: psi_store
@@ -176,7 +174,9 @@
  	    psi_in(:,:,:)=psi_in(:,:,:)+minglobal
  	    return
 	endif
-
+	u_store2=0._sp
+	v_store2=0._sp
+	w_store2=0._sp
 	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	! associate pointers to targets                                                      !
 	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -349,7 +349,8 @@
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 			! associate pointers to targets                                              !
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			if(modulo(it2,2).eq.1) then  						 
+			if(modulo(it2,2).eq.1) then  
+										 
 				ut => u_store1
 				vt => v_store1
 				wt => w_store1
@@ -380,7 +381,7 @@
         ! Smolarkiewicz and Grabowski (1990)                                             !
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		if( (it > 1) .and. monotone) then
-			!it2=it2+1
+			it2=it2+1
 		
 		
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -526,21 +527,12 @@
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 			! associate pointers to targets                                              !
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			if(modulo(it2,2).eq.1) then  										 
-				ut => u_store2
-				vt => v_store2
-				wt => w_store2
-				ut_sav => u_store1
-				vt_sav => v_store1
-				wt_sav => w_store1
-			else if(modulo(it2,2).eq.0) then			
-				ut => u_store1
-				vt => v_store1
-				wt => w_store1
-				ut_sav => u_store2
-				vt_sav => v_store2
-				wt_sav => w_store2
-			endif
+			ut => u_store2
+			vt => v_store2
+			wt => w_store2
+			ut_sav => u_store1
+			vt_sav => v_store1
+			wt_sav => w_store1
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 			call exchange_full(comm3d, id, kp, jp, ip, r_h,r_h,r_h,r_h,l_h,r_h, &
 														ut,dims,coords)
@@ -734,6 +726,9 @@
  	    enddo
  	    return
 	endif
+	u_store2=0._sp
+	v_store2=0._sp
+	w_store2=0._sp
 	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	! associate pointers to targets                                                      !
 	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -906,7 +901,8 @@
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 			! associate pointers to targets                                              !
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			if(modulo(it2,2).eq.1) then  						 
+			if(modulo(it2,2).eq.1) then  
+										 
 				ut => u_store1
 				vt => v_store1
 				wt => w_store1
@@ -937,7 +933,7 @@
         ! Smolarkiewicz and Grabowski (1990)                                             !
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		if( (it > 1) .and. monotone) then
-! 			it2=it2+1
+			it2=it2+1
 		
 		
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1083,21 +1079,12 @@
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 			! associate pointers to targets                                              !
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			if(modulo(it2,2).eq.1) then  						 
-				ut => u_store2
-				vt => v_store2
-				wt => w_store2
-				ut_sav => u_store1
-				vt_sav => v_store1
-				wt_sav => w_store1
-			else if(modulo(it2,2).eq.0) then			
-				ut => u_store1
-				vt => v_store1
-				wt => w_store1
-				ut_sav => u_store2
-				vt_sav => v_store2
-				wt_sav => w_store2
-			endif
+			ut => u_store2
+			vt => v_store2
+			wt => w_store2
+			ut_sav => u_store1
+			vt_sav => v_store1
+			wt_sav => w_store1
 			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 			call exchange_full(comm3d, id, kp, jp, ip, r_h,r_h,r_h,r_h,l_h,r_h, &
 														ut,dims,coords)
