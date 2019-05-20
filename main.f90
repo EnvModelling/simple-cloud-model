@@ -92,7 +92,8 @@
                     grid1%q_name,grid1%q_type,grid1%c_s,grid1%c_e,grid1%nq,&
                     grid1%ncat, &
                     grid1%nprec, grid1%n_mode, &
-                    grid1%iqv, grid1%iqc, grid1%inc, grid1%cat_c, grid1%cat_r)    
+                    grid1%iqv, grid1%iqc, grid1%inc, grid1%cat_am, &
+                    grid1%cat_c, grid1%cat_r)    
 			case default
 				print *, 'error'
 				stop
@@ -142,7 +143,7 @@
                             kp,ord,o_halo,runtime,dt,updraft_type,t_thresh,w_peak, &
                             grid1%c_s,grid1%c_e, &
                             grid1%inc,grid1%iqc, &
-                            grid1%cat_c, grid1%cat_r, &
+                            grid1%cat_am, grid1%cat_c, grid1%cat_r, &
                             grid1%q_name, &
         					grid1%q,grid1%precip,grid1%theta, &
                             grid1%p,dz,grid1%dz2,grid1%z,grid1%t,grid1%rho,grid1%u,io1%new_file, &

@@ -1,9 +1,9 @@
  &run_vars
 	outputfile = '/tmp/output.nc',
 	runtime=3000.,
-	kp=100,
-	dz=100.,
-	dt=10.,
+	kp=1000,
+	dz=10.,
+	dt=1.,
 	nq=5, ! number of q variables
 	nprec=1, ! number of precipitation variables
 	advection_scheme=1, ! 0=upstream, 1=bott, 2=mpdata from sub-tree, 3=mpdata sfvt
@@ -16,22 +16,22 @@
 	aero_nmlfile='pamm/namelist.in', ! filename of aerosol profile namelist
 	aero_prof_flag=.true., ! flag to read in a profile of aerosol
 	hm_flag=.true.,	     ! switch hm process on / off
-	theta_flag=.false.,  ! advect theta
+	theta_flag=.true.,  ! advect theta
 	drop_num_init=.true., ! only works for microphysics_flag=2
-	num_drop=10.e6, ! initial number concentration of drops
+	num_drop=100.e6, ! initial number concentration of drops
 	ice_init=.false.,  ! only works for microphysics_flag=1
 	num_ice=1.,      ! number conc of primary ice crystals /kg
 	mass_ice=1.e-14,    ! mass of new ice crystal
-	updraft_type=1,
+	updraft_type=3,
 	t_thresh=600.0,
 	t_thresh2=200.0,
-	w_peak=0.0/
+	w_peak=1.0/
  &run_vars2
     q_type = 0,1,1,2,2, ! the type of q-variable. 0 vapour, 1 mass, 2 number conc.
     q_init =.true.,.false.,.false.,.false./ ! whether to initialise or now	
  &sounding_spec  ! environmental sounding parameters
  	adiabatic_prof=.true.,
- 	adiabatic_frac=0.2,
+ 	adiabatic_frac=0.1,
  	psurf=100000.,
  	tsurf=300.,
  	t_cbase=290.,

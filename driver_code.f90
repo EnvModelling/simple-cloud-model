@@ -28,7 +28,7 @@
 	!>@param[in] w_peak - w_peak
 	!>@param[in] c_s, c_e: start and end indices for a category
 	!>@param[in] inc, iqc: indices for cloud number and mass
-	!>@param[in] cat_c, cat_r: category index for cloud and rain
+	!>@param[in] cat_am, cat_c, cat_r: category index for cloud and rain
 	!>@param[in] q_name: name of categories
 	!>@param[in] dz,dz2 - grid spacing
 	!>@param[inout] q, theta, pressure, z, temperature, rho, u
@@ -43,7 +43,7 @@
 	!>@param[in] mass_ice - mass of a single ice crystal (override)
     subroutine model_driver_1d(nq,nprec,ncat, n_mode, kp,ord,o_halo,runtime, &
                                dt,updraft_type,t_thresh,w_peak, &
-                               c_s, c_e, inc, iqc, cat_c, cat_r, &
+                               c_s, c_e, inc, iqc, cat_am,cat_c, cat_r, &
                                q_name, &
                                q,precip,theta,p,dz,dz2,z,t,rho,u,new_file,micro_init,&
                                advection_scheme, monotone, &
@@ -59,7 +59,7 @@
     implicit none
     integer(i4b), intent(in) :: nq,nprec,ncat, &
                                 kp, ord, o_halo, updraft_type, advection_scheme, &
-                                inc, iqc, n_mode, cat_c, cat_r    
+                                inc, iqc, n_mode, cat_am, cat_c, cat_r    
     real(sp), intent(in) :: runtime, dt, dz, t_thresh,w_peak
     integer(i4b), dimension(ncat), intent(in) :: c_s, c_e
     character(len=20), dimension(nq) :: q_name
@@ -202,7 +202,7 @@
 			! calculate precipitation diagnostics
         else if (microphysics_flag .eq. 3) then
 			call p_microphysics_1d(nq,ncat,n_mode,c_s,c_e, inc, iqc,&
-			                cat_c, cat_r, kp,o_halo,dt,dz2,dz2,q,precip,theta,p, &
+			                cat_am,cat_c, cat_r, kp,o_halo,dt,dz2,dz2,q,precip,theta,p, &
 						   z,t,rhoa,rho,u,micro_init,hm_flag,mass_ice,theta_flag)
 			! calculate precipitation diagnostics
 		endif       
