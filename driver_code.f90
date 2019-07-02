@@ -76,11 +76,12 @@
     integer(i4b) :: nt, i, j, nsteps, iter
     real(sp), dimension(-o_halo+1:kp+o_halo,nq) :: qtemp
     real(sp) :: time
-    real(sp), dimension(-o_halo+1:kp+o_halo) :: rhoa
+    real(sp), dimension(-o_halo+1:kp+o_halo) :: rhoa, theta_ref
 
     
     ! fudge because dynamics is solenoidal for rhoa=const
     rhoa=1._sp
+    theta_ref=0._sp
 !     rhoa=rho
 
     nt=ceiling(runtime / real(dt,kind=sp) )
@@ -194,16 +195,16 @@
         ! solve microphysics. initialise constants that are commonly used, if needed
         if (microphysics_flag .eq. 1) then
 			call microphysics_1d(nq,kp,o_halo,dt,dz,q,precip,theta,p, &
-						   z,t,rhoa,u,micro_init,hm_flag,mass_ice,theta_flag)
+						   z,theta_ref,rhoa,u,micro_init,hm_flag,mass_ice,theta_flag)
 			! calculate precipitation diagnostics
         else if (microphysics_flag .eq. 2) then
 			call w_microphysics_1d(nq,kp,o_halo,dt,dz,q,precip,theta,p, &
-						   z,t,rhoa,u,micro_init,hm_flag,mass_ice,theta_flag)
+						   z,theta_ref,rhoa,u,micro_init,hm_flag,mass_ice,theta_flag)
 			! calculate precipitation diagnostics
         else if (microphysics_flag .eq. 3) then
 			call p_microphysics_1d(nq,ncat,n_mode,c_s,c_e, inc, iqc,&
 			                cat_am,cat_c, cat_r, kp,o_halo,dt,dz2,dz2,q,precip,theta,p, &
-						   z,t,rhoa,rho,u,micro_init,hm_flag,mass_ice,theta_flag)
+						   z,theta_ref,rhoa,rho,u,micro_init,hm_flag,mass_ice,theta_flag)
 			! calculate precipitation diagnostics
 		endif       
 
