@@ -114,14 +114,14 @@
                         call set_halos_1d(kp,ord,o_halo,q(:,j))            
 						! advection
                         call first_order_upstream_1d(dt/real(nsteps,sp),dz2, &
-                                            rhoa,rhoa,kp,o_halo,o_halo,u,q(:,j),.false.)
+                                            rhoa,rhoa,kp,o_halo,o_halo,u,q(:,j),0)
 					enddo
 					if(theta_flag) then
 						! set halos
                         call set_halos_1d(kp,ord,o_halo,theta) 
 						! advection
 						call first_order_upstream_1d(dt/real(nsteps,sp), &
-								dz2,rhoa,rhoa,kp,o_halo,o_halo, u, theta(:),.false.)
+								dz2,rhoa,rhoa,kp,o_halo,o_halo, u, theta(:),0)
 					endif
 				enddo
 			case(1) ! bott
@@ -149,7 +149,7 @@
                         call set_halos_1d(kp,ord,o_halo,q(:,j))            
                         ! advection
                         call mpdata_1d(dt/real(nsteps,sp),dz2,dz2,&
-                        	rhoa,rhoa,kp,o_halo,o_halo,u,q(:,j),ord,monotone,.false.,0)
+                        	rhoa,rhoa,kp,o_halo,o_halo,u,q(:,j),ord,monotone,0,0)
                     enddo
                     !call mpdata_vec_1d(dt/real(nsteps,sp),dz2,dz2,&
                     !        rho,kp,nq,o_halo,o_halo,u,qtemp,ord,monotone)
@@ -158,7 +158,7 @@
                         call set_halos_1d(kp,ord,o_halo,theta)        
                         ! advection
                         call mpdata_1d(dt/real(nsteps,sp),dz2,dz2,&
-                        	rhoa,rhoa,kp,o_halo,o_halo,u,theta,ord,monotone,.false.,1)
+                        	rhoa,rhoa,kp,o_halo,o_halo,u,theta,ord,monotone,0,1)
                     endif
                 enddo
 			case(3) ! mpdata sfvt
@@ -172,7 +172,7 @@
 						! advection sfvt
 						call mpdata_vec_1d(dt/real(nsteps,sp),dz2,dz2,&
 						    rhoa,rhoa,kp,c_e(j)-c_s(j)+1,o_halo,o_halo,u,&
-						    q(:,c_s(j):c_e(j)),4,monotone,.false.)
+						    q(:,c_s(j):c_e(j)),4,monotone,0)
                     enddo
                     
 					if(theta_flag) then
@@ -180,7 +180,7 @@
 						call set_halos_1d(kp,ord,o_halo,theta)        
 						! advection
 						call mpdata_1d(dt/real(nsteps,sp),dz2,dz2,&
-						    rhoa,rhoa,kp,o_halo,o_halo,u,theta(:),4,monotone,.false.,1)
+						    rhoa,rhoa,kp,o_halo,o_halo,u,theta(:),4,monotone,0,1)
 					endif
 				enddo
 			
@@ -202,12 +202,12 @@
 						   z,theta_ref,rhoa,u,micro_init,hm_flag,mass_ice,theta_flag)
 			! calculate precipitation diagnostics
         else if (microphysics_flag .eq. 3) then
-			call p_microphysics_1d(nq,ncat,n_mode,c_s,c_e, inc, iqc,&
-			                cat_am,cat_c, cat_r, kp,o_halo,dt,dz2,dz2,q,precip,theta,p, &
-						   z,theta_ref,rhoa,rho,u,micro_init,hm_flag,mass_ice,theta_flag)
+			call p_microphysics_1d(nq,ncat,n_mode,c_s,c_e, inc, iqc,-1,-1,&
+			    -1,-1,-1,cat_am,cat_c, cat_r, -1,&
+			    kp,o_halo,dt,dz2,dz2,q,precip,theta,p, &
+				z,theta_ref,rhoa,rho,u,micro_init,hm_flag,mass_ice,.false.,theta_flag)
 			! calculate precipitation diagnostics
 		endif       
-
 
 
 

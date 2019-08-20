@@ -14,7 +14,8 @@
             ! variables for grid
             integer(i4b) :: n_levels,nq,ncat, nprec, &
                             iqv, iqc, iqr, iqi, iqs, iqg, inc, inr, ini, ins, ing, &
-                            cat_am, cat_c, cat_r
+                            iai, &
+                            cat_am, cat_c, cat_r, cat_i
             real(sp) :: dz, dt
             real(sp), dimension(:,:), allocatable :: q, qold, precip
             real(sp), dimension(:), allocatable :: theta, p, rho, z, t, u, dz2
@@ -58,7 +59,7 @@
         logical :: micro_init=.true., adiabatic_prof=.false.
         real(sp) :: adiabatic_frac
         logical :: monotone=.true.,theta_flag=.false., &
-        			hm_flag=.true.,aero_prof_flag=.true.
+        			hm_flag=.true.,aero_prof_flag=.true.,ice_flag=.false.
         integer(i4b) :: advection_scheme=0,microphysics_flag=0
         character (len=200) :: bam_nmlfile = ' '
         character (len=200) :: aero_nmlfile = ' '
