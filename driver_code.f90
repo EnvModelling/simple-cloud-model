@@ -205,7 +205,8 @@
 			call p_microphysics_1d(nq,ncat,n_mode,c_s,c_e, inc, iqc,-1,-1,&
 			    -1,-1,-1,cat_am,cat_c, cat_r, -1,1,&
 			    kp,o_halo,dt,dz2,dz2,q,precip,theta,p, &
-				z,theta_ref,rhoa,rho,u,micro_init,hm_flag,mass_ice,.false.,theta_flag)
+				z,theta_ref,rhoa,rho,u,micro_init,hm_flag,mass_ice,.false.,theta_flag, &
+				0.0_sp,1)
 			! calculate precipitation diagnostics
 		endif       
 
