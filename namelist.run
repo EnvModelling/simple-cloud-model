@@ -20,7 +20,7 @@
 	drop_num_init=.true., ! only works for microphysics_flag=2
 	num_drop=10.e6, ! initial number concentration of drops
 	ice_init=.true.,
-	num_ice=10000.,      ! number conc of primary ice crystals /kg
+	num_ice=1000.,      ! number conc of primary ice crystals /kg
 	mass_ice=1.e-14,    ! mass of new ice crystal
 	updraft_type=1,
 	t_thresh=600.0,
