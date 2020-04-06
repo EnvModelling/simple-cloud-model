@@ -59,7 +59,8 @@
         logical :: micro_init=.true., adiabatic_prof=.false.
         real(sp) :: adiabatic_frac
         logical :: monotone=.true.,theta_flag=.false., &
-        			hm_flag=.true.,aero_prof_flag=.true.,ice_flag=.false.
+        			hm_flag=.true.,aero_prof_flag=.true.,ice_flag=.false., &
+        			wr_flag=.true.,rm_flag=.true.
         integer(i4b) :: advection_scheme=0,microphysics_flag=0
         character (len=200) :: bam_nmlfile = ' '
         character (len=200) :: aero_nmlfile = ' '

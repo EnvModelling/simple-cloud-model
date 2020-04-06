@@ -47,14 +47,14 @@
         namelist /run_vars/ outputfile, runtime, kp, dz, dt, &
                     nq, nprec, &
                     advection_scheme, &
-                    ord, halo, monotone, microphysics_flag, &
-                    bam_nmlfile, aero_nmlfile, aero_prof_flag, hm_flag, theta_flag, &
+                    ord, halo, monotone, microphysics_flag, ice_flag, &
+                    bam_nmlfile, aero_nmlfile, aero_prof_flag, hm_flag, &
+                    wr_flag, rm_flag, theta_flag, &
         			drop_num_init, num_drop, ice_init, num_ice, mass_ice, &
         			updraft_type, t_thresh, &
         			t_thresh2,w_peak
         namelist /run_vars2/ q_type, q_init
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -95,7 +95,10 @@
                     grid1%nprec, grid1%n_mode, &
                     grid1%iqv, grid1%iqc, grid1%inc, grid1%iqr,grid1%inr,&
                     grid1%iqi,grid1%ini,grid1%iai,grid1%cat_am, &
-                    grid1%cat_c, grid1%cat_r,grid1%cat_i)    
+                    grid1%cat_c, grid1%cat_r,grid1%cat_i)  
+                    
+                    nq=grid1%nq
+                    nprec=grid1%nprec  
 			case default
 				print *, 'error'
 				stop
@@ -143,13 +146,14 @@
         call model_driver_1d(grid1%nq,grid1%nprec, grid1%ncat,grid1%n_mode, &
                             kp,ord,o_halo,runtime,dt,updraft_type,t_thresh,w_peak, &
                             grid1%c_s,grid1%c_e, &
-                            grid1%inc,grid1%iqc, &
-                            grid1%cat_am, grid1%cat_c, grid1%cat_r, &
+                            grid1%inc,grid1%iqc, grid1%inr, grid1%iqr, grid1%ini, grid1%iqi, grid1%iai, &
+                            grid1%cat_am, grid1%cat_c, grid1%cat_r, grid1%cat_i,  &
                             grid1%q_name, &
         					grid1%q,grid1%precip,grid1%theta, &
                             grid1%p,dz,grid1%dz2,grid1%z,grid1%t,grid1%rho,grid1%u,io1%new_file, &
                             micro_init,advection_scheme, &
-                            monotone,microphysics_flag,hm_flag,theta_flag, &
+                            monotone,microphysics_flag,ice_flag,hm_flag,&
+                            wr_flag, rm_flag, theta_flag, &
                             mass_ice)
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 

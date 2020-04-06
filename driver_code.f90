@@ -27,8 +27,8 @@
 	!>@param[in] t_thresh - t_thresh
 	!>@param[in] w_peak - w_peak
 	!>@param[in] c_s, c_e: start and end indices for a category
-	!>@param[in] inc, iqc: indices for cloud number and mass
-	!>@param[in] cat_am, cat_c, cat_r: category index for cloud and rain
+	!>@param[in] inc, iqc, inr, iqr, ini,iqi,iai: indices for cloud number and mass
+	!>@param[in] cat_am, cat_c, cat_r, cat_i: category index for cloud and rain
 	!>@param[in] q_name: name of categories
 	!>@param[in] dz,dz2 - grid spacing
 	!>@param[inout] q, theta, pressure, z, temperature, rho, u
@@ -38,16 +38,21 @@
 	!>@param[in] advection_scheme
 	!>@param[in] monotone - flag for monotonic advection
 	!>@param[in] microphysics_flag - flag for calling microphysics
+	!>@param[in] ice_flag - flag for ice microphysics on / off
 	!>@param[in] hm_flag - flag for switching on / off hm process
+	!>@param[in] wr_flag - flag for switching on / off warm rain process
+	!>@param[in] rm_flag - flag for switching on / off riming process
 	!>@param[in] theta_flag - flag for advecting theta dry
 	!>@param[in] mass_ice - mass of a single ice crystal (override)
     subroutine model_driver_1d(nq,nprec,ncat, n_mode, kp,ord,o_halo,runtime, &
                                dt,updraft_type,t_thresh,w_peak, &
-                               c_s, c_e, inc, iqc, cat_am,cat_c, cat_r, &
+                               c_s, c_e, inc, iqc, inr, iqr,ini,iqi,iai, cat_am,cat_c, &
+                               cat_r, cat_i, &
                                q_name, &
                                q,precip,theta,p,dz,dz2,z,t,rho,u,new_file,micro_init,&
                                advection_scheme, monotone, &
-                               microphysics_flag,hm_flag,theta_flag,mass_ice)
+                               microphysics_flag,ice_flag,hm_flag,&
+                               wr_flag, rm_flag, theta_flag, mass_ice)
 
     use nrtype
     use advection
@@ -59,7 +64,8 @@
     implicit none
     integer(i4b), intent(in) :: nq,nprec,ncat, &
                                 kp, ord, o_halo, updraft_type, advection_scheme, &
-                                inc, iqc, n_mode, cat_am, cat_c, cat_r    
+                                inc, iqc, inr, iqr, ini, iqi, iai, &
+                                n_mode, cat_am, cat_c, cat_r, cat_i  
     real(sp), intent(in) :: runtime, dt, dz, t_thresh,w_peak
     integer(i4b), dimension(ncat), intent(in) :: c_s, c_e
     character(len=20), dimension(nq) :: q_name
@@ -68,7 +74,7 @@
     real(sp), dimension(-o_halo+1:kp+o_halo), intent(in) :: dz2
     real(sp), dimension(-o_halo+1:kp+o_halo), intent(inout) :: theta, p, z, t,rho,u
     logical, intent(inout) :: new_file, micro_init
-    logical, intent(in) :: monotone,hm_flag,theta_flag
+    logical, intent(in) :: monotone,ice_flag,hm_flag,wr_flag, rm_flag,theta_flag
     integer(i4b), intent(in) :: microphysics_flag
     real(sp), intent(in) :: mass_ice
 
@@ -202,10 +208,11 @@
 						   z,theta_ref,rhoa,u,micro_init,hm_flag,mass_ice,theta_flag)
 			! calculate precipitation diagnostics
         else if (microphysics_flag .eq. 3) then
-			call p_microphysics_1d(nq,ncat,n_mode,c_s,c_e, inc, iqc,-1,-1,&
-			    -1,-1,-1,cat_am,cat_c, cat_r, -1,1,&
+			call p_microphysics_1d(nq,ncat,n_mode,c_s,c_e, inc, iqc,inr,iqr,&
+			    ini,iqi,iai,cat_am,cat_c, cat_r, cat_i,nprec,&
 			    kp,o_halo,dt,dz2,dz2,q,precip,theta,p, &
-				z,theta_ref,rhoa,rho,u,micro_init,hm_flag,mass_ice,.false.,theta_flag, &
+				z,theta_ref,rhoa,rho,u,micro_init,hm_flag,mass_ice,ice_flag,&
+				wr_flag,rm_flag, theta_flag, &
 				0.0_sp,1)
 			! calculate precipitation diagnostics
 		endif       
