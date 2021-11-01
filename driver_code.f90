@@ -213,7 +213,7 @@
 			    kp,o_halo,dt,dz2,dz2,q,precip,theta,p, &
 				z,theta_ref,rhoa,rho,u,micro_init,hm_flag,mass_ice,ice_flag,&
 				wr_flag,rm_flag, theta_flag, &
-				0.0_sp,1,0,0,.false.)
+				0.0_sp,1,0,0,.false.,.false.,.true.)
 			! calculate precipitation diagnostics
 		endif       
 
