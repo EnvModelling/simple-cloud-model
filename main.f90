@@ -49,7 +49,8 @@
                     advection_scheme, &
                     ord, halo, monotone, microphysics_flag, ice_flag, &
                     bam_nmlfile, aero_nmlfile, aero_prof_flag, hm_flag, &
-                    wr_flag, rm_flag, theta_flag, &
+                    wr_flag, rm_flag, heyms_west, mode1_ice_flag,mode2_ice_flag, &
+				    coll_breakup_flag1, theta_flag, &
         			drop_num_init, num_drop, ice_init, num_ice, mass_ice, &
         			updraft_type, t_thresh, &
         			t_thresh2,w_peak
@@ -153,7 +154,8 @@
                             grid1%p,dz,grid1%dz2,grid1%z,grid1%t,grid1%rho,grid1%u,io1%new_file, &
                             micro_init,advection_scheme, &
                             monotone,microphysics_flag,ice_flag,hm_flag,&
-                            wr_flag, rm_flag, theta_flag, &
+                            wr_flag, rm_flag, mode1_ice_flag, mode2_ice_flag, &
+				            coll_breakup_flag1, heyms_west, theta_flag, &
                             mass_ice)
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 

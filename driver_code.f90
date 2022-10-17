@@ -42,6 +42,10 @@
 	!>@param[in] hm_flag - flag for switching on / off hm process
 	!>@param[in] wr_flag - flag for switching on / off warm rain process
 	!>@param[in] rm_flag - flag for switching on / off riming process
+	!>@param[in] mode1_ice_flag - flag for switching on / off mode1
+	!>@param[in] mode2_ice_flag - flag for switching on / off mode2
+	!>@param[in] coll_breakup_flag1 - flag for switching on / off ice-ice collisional bu
+	!>@param[in] heyms_west - flag for heymsfield and westbrook fallspeeds
 	!>@param[in] theta_flag - flag for advecting theta dry
 	!>@param[in] mass_ice - mass of a single ice crystal (override)
     subroutine model_driver_1d(nq,nprec,ncat, n_mode, kp,ord,o_halo,runtime, &
@@ -52,7 +56,8 @@
                                q,precip,theta,p,dz,dz2,z,t,rho,u,new_file,micro_init,&
                                advection_scheme, monotone, &
                                microphysics_flag,ice_flag,hm_flag,&
-                               wr_flag, rm_flag, theta_flag, mass_ice)
+                               wr_flag, rm_flag, mode1_ice_flag, mode2_ice_flag, &
+				               coll_breakup_flag1, heyms_west, theta_flag, mass_ice)
 
     use nrtype
     use advection
@@ -74,8 +79,11 @@
     real(sp), dimension(-o_halo+1:kp+o_halo), intent(in) :: dz2
     real(sp), dimension(-o_halo+1:kp+o_halo), intent(inout) :: theta, p, z, t,rho,u
     logical, intent(inout) :: new_file, micro_init
-    logical, intent(in) :: monotone,ice_flag,hm_flag,wr_flag, rm_flag,theta_flag
-    integer(i4b), intent(in) :: microphysics_flag
+    logical, intent(in) :: monotone,ice_flag,hm_flag,wr_flag, rm_flag,theta_flag, &
+                        heyms_west
+    integer(i4b), intent(in) :: microphysics_flag, mode1_ice_flag,mode2_ice_flag, &
+				    coll_breakup_flag1
+				    
     real(sp), intent(in) :: mass_ice
 
     ! local variables
@@ -213,7 +221,8 @@
 			    kp,o_halo,dt,dz2,dz2,q,precip,theta,p, &
 				z,theta_ref,rhoa,rho,u,micro_init,hm_flag,mass_ice,ice_flag,&
 				wr_flag,rm_flag, theta_flag, &
-				0.0_sp,1,0,0,0,.false.,.false.,.true.)
+				0.0_sp,1,mode1_ice_flag,mode2_ice_flag, &
+				    coll_breakup_flag1, heyms_west, .false.,.true.)
 			! calculate precipitation diagnostics
 		endif       
 

@@ -19,6 +19,10 @@
 	hm_flag=.true.,	     ! switch hm process on / off
 	wr_flag=.true.,	     ! switch warm rain process on / off
 	rm_flag=.true.,	     ! switch riming process on / off
+	mode1_ice_flag=0,           ! 0 is off; 1 is on - experimental
+	mode2_ice_flag=0,           ! 0 is off; 1 is on - experimental
+	coll_breakup_flag1=0,        ! 0 is off; 1 is on vardiman, 2 is phillips et al 2017 - experimental
+	heyms_west=.false.,          ! flag for new fall-speeds
 	theta_flag=.true.,  ! advect theta
 	drop_num_init=.true., ! only works for microphysics_flag=2
 	num_drop=1000.e6, ! initial number concentration of drops
