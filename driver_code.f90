@@ -3,7 +3,7 @@
 	!>@brief
 	!>drivers and physics code for the simple cloud model
     module drivers
-    use nrtype
+    use numerics_type
     use variables
     private
     public :: model_driver_1d
@@ -59,7 +59,7 @@
                                wr_flag, rm_flag, mode1_ice_flag, mode2_ice_flag, &
 				               coll_breakup_flag1, heyms_west, theta_flag, mass_ice)
 
-    use nrtype
+    use numerics_type
     use advection
     use advection_s_1d, only : first_order_upstream_1d, mpdata_1d, mpdata_vec_1d
     use micro_module
@@ -71,36 +71,36 @@
                                 kp, ord, o_halo, updraft_type, advection_scheme, &
                                 inc, iqc, inr, iqr, ini, iqi, iai, &
                                 n_mode, cat_am, cat_c, cat_r, cat_i  
-    real(sp), intent(in) :: runtime, dt, dz, t_thresh,w_peak
+    real(wp), intent(in) :: runtime, dt, dz, t_thresh,w_peak
     integer(i4b), dimension(ncat), intent(in) :: c_s, c_e
     character(len=20), dimension(nq) :: q_name
-    real(sp), dimension(-o_halo+1:kp+o_halo,nq), intent(inout) :: q
-    real(sp), dimension(1:kp,nprec), intent(inout) :: precip
-    real(sp), dimension(-o_halo+1:kp+o_halo), intent(in) :: dz2
-    real(sp), dimension(-o_halo+1:kp+o_halo), intent(inout) :: theta, p, z, t,rho,u
+    real(wp), dimension(-o_halo+1:kp+o_halo,nq), intent(inout) :: q
+    real(wp), dimension(1:kp,nprec), intent(inout) :: precip
+    real(wp), dimension(-o_halo+1:kp+o_halo), intent(in) :: dz2
+    real(wp), dimension(-o_halo+1:kp+o_halo), intent(inout) :: theta, p, z, t,rho,u
     logical, intent(inout) :: new_file, micro_init
     logical, intent(in) :: monotone,ice_flag,hm_flag,wr_flag, rm_flag,theta_flag, &
                         heyms_west
     integer(i4b), intent(in) :: microphysics_flag, mode1_ice_flag,mode2_ice_flag, &
 				    coll_breakup_flag1
 				    
-    real(sp), intent(in) :: mass_ice
+    real(wp), intent(in) :: mass_ice
 
     ! local variables
     integer(i4b) :: nt, i, j, nsteps, iter
-    real(sp), dimension(-o_halo+1:kp+o_halo,nq) :: qtemp
-    real(sp) :: time
-    real(sp), dimension(-o_halo+1:kp+o_halo) :: rhoa, theta_ref
+    real(wp), dimension(-o_halo+1:kp+o_halo,nq) :: qtemp
+    real(wp) :: time
+    real(wp), dimension(-o_halo+1:kp+o_halo) :: rhoa, theta_ref
 
     
     ! fudge because dynamics is solenoidal for rhoa=const
-    rhoa=1._sp
-    theta_ref=0._sp
+    rhoa=1._wp
+    theta_ref=0._wp
 !     rhoa=rho
 
-    nt=ceiling(runtime / real(dt,kind=sp) )
+    nt=ceiling(runtime / real(dt,kind=wp) )
     do i=1,nt
-    	time=real(i-1,sp)*dt
+    	time=real(i-1,wp)*dt
         print *,'time-step ',i,' of ',nt, ' time=',time
 
 		
@@ -119,7 +119,7 @@
 		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! advection                                                                      !
 		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		nsteps=ceiling(dt/(0.7_sp*dz)*(max(maxval(u),abs(minval(u)))))
+		nsteps=ceiling(dt/(0.7_wp*dz)*(max(maxval(u),abs(minval(u)))))
 		select case (advection_scheme)
 			case (0) ! upstream
 				do iter=1,nsteps
@@ -127,14 +127,14 @@
                         ! set halos
                         call set_halos_1d(kp,ord,o_halo,q(:,j))            
 						! advection
-                        call first_order_upstream_1d(dt/real(nsteps,sp),dz2, &
+                        call first_order_upstream_1d(dt/real(nsteps,wp),dz2, &
                                             rhoa,rhoa,kp,o_halo,o_halo,u,q(:,j),0)
 					enddo
 					if(theta_flag) then
 						! set halos
                         call set_halos_1d(kp,ord,o_halo,theta) 
 						! advection
-						call first_order_upstream_1d(dt/real(nsteps,sp), &
+						call first_order_upstream_1d(dt/real(nsteps,wp), &
 								dz2,rhoa,rhoa,kp,o_halo,o_halo, u, theta(:),0)
 					endif
 				enddo
@@ -144,14 +144,14 @@
                         ! set halos
                         call set_halos_1d(kp,ord,o_halo,q(:,j))            
                         ! advection
-                        call bott_scheme_1d(kp,ord,o_halo,dt/real(nsteps,sp), &
+                        call bott_scheme_1d(kp,ord,o_halo,dt/real(nsteps,wp), &
                                             dz,z,u,q(:,j),monotone)
                     enddo
                     if(theta_flag) then
                         ! set halos
                         call set_halos_1d(kp,ord,o_halo,theta)        
                         ! advection
-                        call bott_scheme_1d(kp,ord,o_halo,dt/real(nsteps,sp),&
+                        call bott_scheme_1d(kp,ord,o_halo,dt/real(nsteps,wp),&
                                             dz,z,u,theta,monotone)
                     endif
                 enddo
@@ -162,16 +162,16 @@
                         ! set halos
                         call set_halos_1d(kp,ord,o_halo,q(:,j))            
                         ! advection
-                        call mpdata_1d(dt/real(nsteps,sp),dz2,dz2,&
+                        call mpdata_1d(dt/real(nsteps,wp),dz2,dz2,&
                         	rhoa,rhoa,kp,o_halo,o_halo,u,q(:,j),ord,monotone,0,0)
                     enddo
-                    !call mpdata_vec_1d(dt/real(nsteps,sp),dz2,dz2,&
+                    !call mpdata_vec_1d(dt/real(nsteps,wp),dz2,dz2,&
                     !        rho,kp,nq,o_halo,o_halo,u,qtemp,ord,monotone)
                     if(theta_flag) then
                         ! set halos
                         call set_halos_1d(kp,ord,o_halo,theta)        
                         ! advection
-                        call mpdata_1d(dt/real(nsteps,sp),dz2,dz2,&
+                        call mpdata_1d(dt/real(nsteps,wp),dz2,dz2,&
                         	rhoa,rhoa,kp,o_halo,o_halo,u,theta,ord,monotone,0,1)
                     endif
                 enddo
@@ -184,7 +184,7 @@
 
 					do j=1,ncat
 						! advection sfvt
-						call mpdata_vec_1d(dt/real(nsteps,sp),dz2,dz2,&
+						call mpdata_vec_1d(dt/real(nsteps,wp),dz2,dz2,&
 						    rhoa,rhoa,kp,c_e(j)-c_s(j)+1,o_halo,o_halo,u,&
 						    q(:,c_s(j):c_e(j)),4,monotone,0)
                     enddo
@@ -193,7 +193,7 @@
 						! set halos
 						call set_halos_1d(kp,ord,o_halo,theta)        
 						! advection
-						call mpdata_1d(dt/real(nsteps,sp),dz2,dz2,&
+						call mpdata_1d(dt/real(nsteps,wp),dz2,dz2,&
 						    rhoa,rhoa,kp,o_halo,o_halo,u,theta(:),4,monotone,0,1)
 					endif
 				enddo
@@ -221,7 +221,7 @@
 			    kp,o_halo,dt,dz2,dz2,q,precip,theta,p, &
 				z,theta_ref,rhoa,rho,u,micro_init,hm_flag,mass_ice,ice_flag,&
 				wr_flag,rm_flag, theta_flag, &
-				0.0_sp,1,mode1_ice_flag,mode2_ice_flag, &
+				0.0_wp,1,mode1_ice_flag,mode2_ice_flag, &
 				    coll_breakup_flag1, heyms_west, .false.,.true.)
 			! calculate precipitation diagnostics
 		endif       
@@ -251,42 +251,42 @@
     subroutine kinematics_1d(nq,kp,o_halo,updraft_type, t_thresh, w_peak, &
                                time,q,theta,p,z,t,u)
 
-    use nrtype
+    use numerics_type
     use advection
 
     implicit none
     integer(i4b), intent(in) :: nq,kp, o_halo, updraft_type
-    real(sp), intent(in) :: time, t_thresh, w_peak
-    real(sp), dimension(-o_halo+1:kp+o_halo,nq), intent(inout) :: q
-    real(sp), dimension(-o_halo+1:kp+o_halo), intent(inout) :: theta, p, z, t,u
+    real(wp), intent(in) :: time, t_thresh, w_peak
+    real(wp), dimension(-o_halo+1:kp+o_halo,nq), intent(inout) :: q
+    real(wp), dimension(-o_halo+1:kp+o_halo), intent(inout) :: theta, p, z, t,u
 
 	select case (updraft_type)
 		case(0)
 			u(:)=w_peak
 		case(1)
 			if(time.lt.t_thresh) then
-				u(:)=w_peak*sin(1._sp*pi*time/t_thresh)
+				u(:)=w_peak*sin(1._wp*pi*time/t_thresh)
 			else
-				u(:)=0._sp
+				u(:)=0._wp
 			endif
 		case(2)
 			if(time.lt.t_thresh) then
-				u(:)=0._sp
+				u(:)=0._wp
 			endif
 			if(time.ge.t_thresh) then
-				u(:)=w_peak*sin(2._sp*pi*(time-t_thresh)/t_thresh2)
+				u(:)=w_peak*sin(2._wp*pi*(time-t_thresh)/t_thresh2)
 			endif
 			if(time.ge.(t_thresh+t_thresh2)) then
-				u(:)=0._sp
+				u(:)=0._wp
 			endif
 		case(3)			
 		    if(time.lt.t_thresh) then
-				u(:)=w_peak*sin(2._sp*pi*time/t_thresh)
+				u(:)=w_peak*sin(2._wp*pi*time/t_thresh)
 			elseif((time.gt.(t_thresh+t_thresh2)).and. &
-			    (time.lt.(2._sp*t_thresh+t_thresh2))) then
-				u(:)=w_peak*sin(2._sp*pi*(time-(t_thresh+t_thresh2))/t_thresh)
+			    (time.lt.(2._wp*t_thresh+t_thresh2))) then
+				u(:)=w_peak*sin(2._wp*pi*(time-(t_thresh+t_thresh2))/t_thresh)
 			else
-				u(:)=0._sp
+				u(:)=0._wp
 			endif
 		case default
 			print *,'select defined updraft_type ',updraft_type
@@ -307,11 +307,11 @@
 	!>@param[inout] psi: field to set
     subroutine set_halos_1d(kp,ord,o_halo,psi)  
 
-    use nrtype
+    use numerics_type
     implicit none
     ! arguments:
     integer(i4b), intent(in) :: kp, ord, o_halo
-    real(sp), dimension(-o_halo+1:kp+o_halo), intent(inout) :: psi
+    real(wp), dimension(-o_halo+1:kp+o_halo), intent(inout) :: psi
 
 	! top
 	psi(kp+1:kp+o_halo)=psi(kp)
@@ -334,17 +334,17 @@
     subroutine output_1d(time,nq,nprec,kp,q_name, &
                         q,precip,theta,p,z,t,u,new_file)
 
-    use nrtype
+    use numerics_type
     use netcdf
     use variables, only : io1
 
     implicit none
-    real(sp), intent(in) :: time
+    real(wp), intent(in) :: time
     integer(i4b), intent(in) :: nq,nprec,kp
     character(len=20), dimension(nq) :: q_name
-    real(sp), dimension(kp,nq), intent(in) :: q
-    real(sp), dimension(kp,nprec), intent(in) :: precip
-    real(sp), dimension(kp), intent(in) :: theta, p, z, t, u
+    real(wp), dimension(kp,nq), intent(in) :: q
+    real(wp), dimension(kp,nprec), intent(in) :: precip
+    real(wp), dimension(kp), intent(in) :: theta, p, z, t, u
     logical, intent(inout) :: new_file
 
     ! output to netcdf file
@@ -532,7 +532,7 @@
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     subroutine check(status)
     use netcdf
-    use nrtype
+    use numerics_type
     integer(I4B), intent ( in) :: status
 
     if(status /= nf90_noerr) then

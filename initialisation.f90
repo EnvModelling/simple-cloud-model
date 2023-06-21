@@ -5,7 +5,7 @@
 	!>hydrostatic equation for pressure:
 	!>\f$ \frac{\partial P}{\partial z} = - \frac{P}{R_aT}g \f$
     module initialisation
-    use nrtype
+    use numerics_type
 !    use variables
     private
     public :: calc_profile_1d, allocate_arrays
@@ -22,12 +22,12 @@
 	!>@param[inout] q_init: logical array
 	!>@param[inout] q_read: real array
     subroutine allocate_arrays(nq,n_levels,q_type,q_init,q_read)
-    use nrtype
+    use numerics_type
     implicit none
     integer(i4b), intent(in) :: nq, n_levels
     integer(i4b), dimension(:), allocatable, intent(inout) :: q_type
     logical, dimension(:), allocatable, intent(inout) :: q_init
-    real(sp), dimension(:,:), allocatable, intent(inout) :: q_read
+    real(wp), dimension(:,:), allocatable, intent(inout) :: q_read
     ! local variables:
     integer(i4b) :: AllocateStatus
     
@@ -83,34 +83,34 @@
                              precip,theta,p,z,t,rho,u, &
                              drop_num_init, num_drop, ice_init,num_ice, mass_ice, &
                              microphysics_flag)
-    use nrtype
-    use nr, only : locate, polint, rkqs, odeint, zbrent
+    use numerics_type
+    use numerics, only : find_pos, poly_int, vode_integrate, zeroin
     use constants
     use variables, only : theta_surf, theta_q_sat, w_cb, t1old, p111
 
     implicit none
     ! inputs
     integer(i4b), intent(in) :: n_levels, nq,nprec,o_halo
-    real(sp), dimension(n_levels), intent(in) :: z_read, theta_read
-    real(sp), dimension(nq,n_levels), intent(in) :: q_read
+    real(wp), dimension(n_levels), intent(in) :: z_read, theta_read
+    real(wp), dimension(nq,n_levels), intent(in) :: q_read
     integer(i4b), dimension(nq), intent(in) :: q_type
     logical, dimension(nq), intent(in) :: q_init
     integer(i4b), intent(in) :: kp, microphysics_flag
-    real(sp), intent(in) :: dz, psurf, tsurf, t_cbase, t_ctop
+    real(wp), intent(in) :: dz, psurf, tsurf, t_cbase, t_ctop
     logical, intent(in) :: adiabatic_prof, ice_init, drop_num_init
-    real(sp), intent(in) :: adiabatic_frac
-    real(sp), intent(in) :: num_drop, num_ice, mass_ice
+    real(wp), intent(in) :: adiabatic_frac
+    real(wp), intent(in) :: num_drop, num_ice, mass_ice
     ! inouts
-    real(sp), dimension(:), allocatable, intent(inout) :: theta, p, z, t, rho,u,dz2
-    real(sp), dimension(:,:), allocatable, intent(inout) :: q, precip
+    real(wp), dimension(:), allocatable, intent(inout) :: theta, p, z, t, rho,u,dz2
+    real(wp), dimension(:,:), allocatable, intent(inout) :: q, precip
     integer(i4b), intent(in) :: iqv, iqc, inc, iqi, ini
 
     ! local variables:
     integer(i4b) :: i,j, iloc, AllocateStatus, istore,istore2
-    real(sp) :: var, dummy
+    real(wp) :: var, dummy
 	! variables for odesolver:
-	real(sp), dimension(1) :: z1, p11,p22
-	real(sp) :: htry,hmin,eps2,p1,p2,p_ctop,z11,z22,theta1
+	real(wp), dimension(1) :: z1, p11,p22
+	real(wp) :: htry,hmin,eps2,p1,p2,p_ctop,z11,z22,theta1
 
     ! allocate arrays
     allocate( precip(1:kp,1:nprec), STAT = AllocateStatus)
@@ -133,21 +133,21 @@
     if (AllocateStatus /= 0) STOP "*** Not enough memory ***"
 
 
-	precip=0._sp
+	precip=0._wp
 
     ! set up vertical level array
-    z=dz*(/(i,i=-o_halo,kp+o_halo-1)/)+0.5_sp*dz ! note this is actually zn
+    z=dz*(/(i,i=-o_halo,kp+o_halo-1)/)+0.5_wp*dz ! note this is actually zn
     dz2=dz
-	q=0._sp
+	q=0._wp
 	if (adiabatic_prof) then
 		! calculate the dry adiabat:
-		theta_surf=tsurf*(1.e5_sp/psurf)**(ra/cp)
+		theta_surf=tsurf*(1.e5_wp/psurf)**(ra/cp)
 		p1=psurf
-		z1=0._sp
-		p2=1.e5_sp*(t_cbase/theta_surf)**(cp/ra)
+		z1=0._wp
+		p2=1.e5_wp*(t_cbase/theta_surf)**(cp/ra)
 		htry=p2-psurf
-		eps2=1e-5_sp
-		call odeint(z1,p1,p2,eps2,htry,hmin,hydrostatic1,rkqs)
+		eps2=1e-5_wp
+		call vode_integrate(z1,p1,p2,eps2,htry,hmin,hydrostatic1)
 		p1=p2
 		
 		! integrate going downwards - dry adiabatic layer
@@ -157,8 +157,8 @@
 			z22=z(i-1)
 			p11=p(i)
 			htry=-dz
-			hmin=-1.e-2_sp
-			call odeint(p11,z11,z22,eps2,htry,hmin,hydrostatic1a,rkqs)
+			hmin=-1.e-2_wp
+			call vode_integrate(p11,z11,z22,eps2,htry,hmin,hydrostatic1a)
 			p(i-1)=p11(1)
 		enddo
 		! integrate going upwards - dry adiabatic layer
@@ -169,24 +169,24 @@
 			if(z22.gt.z1(1)) exit
 			p11=p(i)
 			htry=dz
-			hmin=1.e-2_sp
-			call odeint(p11,z11,z22,eps2,htry,hmin,hydrostatic1a,rkqs)
+			hmin=1.e-2_wp
+			call vode_integrate(p11,z11,z22,eps2,htry,hmin,hydrostatic1a)
 			p(i+1)=p11(1)
 		enddo
 		istore=i-1
 		! adiabatic temperature
-		t(-o_halo+1:istore)=theta_surf*(p(-o_halo+1:istore)/1.e5_sp)**(ra/cp)
+		t(-o_halo+1:istore)=theta_surf*(p(-o_halo+1:istore)/1.e5_wp)**(ra/cp)
 		! adiabatic vapour mixing ratio
 		q(-o_halo+1:istore,iqv)=eps1*svp_liq(t_cbase)/(p1-svp_liq(t_cbase))
 
 
 		! now calculate the moist adiabat
 		w_cb=eps1*svp_liq(t_cbase)/(p1-svp_liq(t_cbase))
-		theta_q_sat=t_cbase*(1.e5_sp/p1)**(ra/cp)*exp(lv*w_cb/cp/t_cbase)	
+		theta_q_sat=t_cbase*(1.e5_wp/p1)**(ra/cp)*exp(lv*w_cb/cp/t_cbase)	
 		! theta_q_sat is conserved. Use it to calculate the new temperature
 		t1old=t_ctop
 
-		p_ctop=zbrent(calc_theta_q2,p1,3000._sp,1.e-5_sp)
+		p_ctop=zeroin(p1,3000._wp,calc_theta_q2,1.e-5_wp)
 
 !		stop
 		! integrate going upwards - moist adiabatic layer
@@ -195,10 +195,10 @@
 		! now find the temperature
 		p111=p(istore)
 		t(istore)=theta_surf*( &
-			(p(istore)-dz*p(istore)/ra/t_ctop)/1.e5_sp)**(ra/cp) ! a temperature colder than
+			(p(istore)-dz*p(istore)/ra/t_ctop)/1.e5_wp)**(ra/cp) ! a temperature colder than
 		                                                   ! next level
 
-		t(istore)=zbrent(calc_theta_q,1.01_sp*t(istore),t_ctop,1.e-5_sp)
+		t(istore)=zeroin(1.01_wp*t(istore),t_ctop,calc_theta_q,1.e-5_wp)
 
 		t1old=t(istore)
 		do i=istore,kp+o_halo-1
@@ -212,14 +212,14 @@
 				p11=p(i)
 			endif
 			htry=dz
-			hmin=1.e-2_sp
+			hmin=1.e-2_wp
 			!print *,t1old,p11,z11,z22
-			call odeint(p11,z11,z22,eps2,htry,hmin,hydrostatic2a,rkqs)
+			call vode_integrate(p11,z11,z22,eps2,htry,hmin,hydrostatic2a)
 			p(i+1)=p11(1)
-			t(i+1)=theta_surf*(p(i+1)/1.e5_sp)**(ra/cp)
+			t(i+1)=theta_surf*(p(i+1)/1.e5_wp)**(ra/cp)
 			t1old=t(i)
 			p111=p(i+1)
-			t(i+1)=zbrent(calc_theta_q,t(i+1),t1old*1.01_sp,1.e-5_sp)
+			t(i+1)=zeroin(t(i+1),t1old*1.01_wp,calc_theta_q,1.e-5_wp)
 			if(t(i+1).lt.t_ctop) exit
 		enddo
 		istore2=i-1
@@ -227,7 +227,7 @@
 			q(i,iqv)=eps1*svp_liq(t(i))/ &
 								(p(i)-svp_liq(t(i)))
 			q(i,iqc)=adiabatic_frac* &
-					max(q(1,iqv)-eps1*svp_liq(t(i))/(p(i)-svp_liq(t(i))) ,0._sp)
+					max(q(1,iqv)-eps1*svp_liq(t(i))/(p(i)-svp_liq(t(i))) ,0._wp)
 			if(drop_num_init .and. &
 			    ((microphysics_flag .eq. 2) .or. (microphysics_flag .eq. 3))) then
 			    q(i,inc) = num_drop
@@ -235,18 +235,18 @@
 		enddo
 
 		! integrate going upwards - dry adiabatic layer
-		theta1=t_ctop*(1.e5_sp/p_ctop)**(ra/cp)
+		theta1=t_ctop*(1.e5_wp/p_ctop)**(ra/cp)
 		istore2=istore2+1
 		do i=istore2,kp+o_halo-1
 			z11=z(i)
 			z22=z(i+1)
 			p11=p(i)
 			htry=dz
-			hmin=1.e-2_sp
-			call odeint(p11,z11,z22,eps2,htry,hmin,hydrostatic1a,rkqs)
+			hmin=1.e-2_wp
+			call vode_integrate(p11,z11,z22,eps2,htry,hmin,hydrostatic1a)
 			p(i+1)=p11(1)
 		enddo
-		t(istore2:kp+o_halo)=theta1*(p(istore2:kp+o_halo)/1.e5_sp)**(ra/cp)
+		t(istore2:kp+o_halo)=theta1*(p(istore2:kp+o_halo)/1.e5_wp)**(ra/cp)
 
 		! initialise ice crystals
 		if(ice_init .and. (microphysics_flag .eq. 1)) then
@@ -259,11 +259,11 @@
 	else
 		! use linear interpolation to put sounding on grid:
 		do i=-o_halo+1,kp+o_halo
-			iloc=locate(z_read(1:n_levels),z(i))
+			iloc=find_pos(z_read(1:n_levels),z(i))
 			iloc=min(n_levels-1,iloc)
 			iloc=max(1,iloc)
 			! linear interp theta
-			call polint(z_read(iloc:iloc+1), theta_read(iloc:iloc+1), &
+			call poly_int(z_read(iloc:iloc+1), theta_read(iloc:iloc+1), &
 						min(z(i),z_read(n_levels)), var,dummy)
 			theta(i)=var
 
@@ -272,14 +272,14 @@
 			do j=1,nq
 				if(q_init(j)) then
 					! linear interp q fields
-					call polint(z_read(iloc:iloc+1), q_read(j,iloc:iloc+1), &
+					call poly_int(z_read(iloc:iloc+1), q_read(j,iloc:iloc+1), &
 								min(z(i),z_read(n_levels)), var, dummy)
 					q(i,j)=var
 				else
 					if(q_type(j).eq.2) then
-						q(i,j) = .0_sp
+						q(i,j) = .0_wp
 					else
-						q(i,j) = 0.0_sp
+						q(i,j) = 0.0_wp
 					endif
 				endif
 			enddo
@@ -303,56 +303,56 @@
 	endif
 
     u(:)=0
-    theta=t*(1.e5_sp/p)**(ra/cp)
+    theta=t*(1.e5_wp/p)**(ra/cp)
     rho=p/(ra*t)
-    !q(6,:)=0._sp
+    !q(6,:)=0._wp
     end subroutine calc_profile_1d
 
 
 	subroutine hydrostatic1(p,z,dzdp)
-	use nrtype
+	use numerics_type
 	use constants
 	use variables, only : theta_surf
 	implicit none
-	real(sp), intent(in) :: p
-	real(sp), dimension(:), intent(in) :: z
-	real(sp), dimension(:), intent(out) :: dzdp
-	real(sp) :: t
+	real(wp), intent(in) :: p
+	real(wp), dimension(:), intent(in) :: z
+	real(wp), dimension(:), intent(out) :: dzdp
+	real(wp) :: t
 	
-	t=theta_surf*(p/1.e5_sp)**(ra/cp)
+	t=theta_surf*(p/1.e5_wp)**(ra/cp)
 	dzdp(1)=-(ra*t) / (grav*p)
 	
 	end subroutine hydrostatic1
 
 	subroutine hydrostatic1a(z,p,dpdz)
-	use nrtype
+	use numerics_type
 	use constants
 	use variables, only : theta_surf
 	implicit none
-	real(sp), intent(in) :: z
-	real(sp), dimension(:), intent(in) :: p
-	real(sp), dimension(:), intent(out) :: dpdz
-	real(sp) :: t
+	real(wp), intent(in) :: z
+	real(wp), dimension(:), intent(in) :: p
+	real(wp), dimension(:), intent(out) :: dpdz
+	real(wp) :: t
 	
-	t=theta_surf*(p(1)/1.e5_sp)**(ra/cp)
+	t=theta_surf*(p(1)/1.e5_wp)**(ra/cp)
 	dpdz(1)=-(grav*p(1)) / (ra*t) 
 	
 	end subroutine hydrostatic1a
 
 	subroutine hydrostatic2(p,z,dzdp)
-	use nrtype
-	use nr, only : zbrent
+	use numerics_type
+	use numerics, only : zeroin
 	use constants
 	use variables, only : theta_surf,theta_q_sat, w_cb, t1old, p111
 	implicit none
-	real(sp), intent(in) :: p
-	real(sp), dimension(:), intent(in) :: z
-	real(sp), dimension(:), intent(out) :: dzdp
-	real(sp) :: t
+	real(wp), intent(in) :: p
+	real(wp), dimension(:), intent(in) :: z
+	real(wp), dimension(:), intent(out) :: dzdp
+	real(wp) :: t
 	
 	p111=p
-	t=theta_surf*(p111/1.e5_sp)**(ra/cp)
-	t=zbrent(calc_theta_q,t,t1old*1.01_sp,1.e-5_sp)
+	t=theta_surf*(p111/1.e5_wp)**(ra/cp)
+	t=zeroin(t,t1old*1.01_wp,calc_theta_q,1.e-5_wp)
 !	print *,'hi',t,calc_theta_q(t)
 	! find the temperature by iteration
 	dzdp(1)=-(ra*t) / (grav*p)
@@ -360,19 +360,19 @@
 	end subroutine hydrostatic2
 
 	subroutine hydrostatic2a(z,p,dpdz)
-	use nrtype
-	use nr, only : zbrent
+	use numerics_type
+	use numerics, only : zeroin
 	use constants
 	use variables, only : theta_surf,theta_q_sat, w_cb, t1old, p111
 	implicit none
-	real(sp), intent(in) :: z
-	real(sp), dimension(:), intent(in) :: p
-	real(sp), dimension(:), intent(out) :: dpdz
-	real(sp) :: t
+	real(wp), intent(in) :: z
+	real(wp), dimension(:), intent(in) :: p
+	real(wp), dimension(:), intent(out) :: dpdz
+	real(wp) :: t
 	
 	p111=p(1)
-	t=theta_surf*(p111/1.e5_sp)**(ra/cp)
-	t=zbrent(calc_theta_q,t,t1old*1.01_sp,1.e-5_sp)
+	t=theta_surf*(p111/1.e5_wp)**(ra/cp)
+	t=zeroin(t,t1old*1.01_wp,calc_theta_q,1.e-5_wp)
 !	print *,'hi',t,calc_theta_q(t)
 	! find the temperature by iteration
 	dpdz(1)=-(grav*p(1))/(ra*t)
@@ -381,28 +381,28 @@
 	
 
 	function calc_theta_q(t111)
-	use nrtype
+	use numerics_type
 	use constants
 	use variables, only : theta_q_sat, p111
 	implicit none
-	real(sp), intent(in) :: t111
-	real(sp) :: calc_theta_q
-	real(sp) :: ws
+	real(wp), intent(in) :: t111
+	real(wp) :: calc_theta_q
+	real(wp) :: ws
 	ws=eps1*svp_liq(t111)/(p111-svp_liq(t111))
-	calc_theta_q=t111*(1.e5_sp/p111)**(ra/cp)*exp(lv*ws/cp/t111)-theta_q_sat
+	calc_theta_q=t111*(1.e5_wp/p111)**(ra/cp)*exp(lv*ws/cp/t111)-theta_q_sat
 
 	end function calc_theta_q     
 
 	function calc_theta_q2(p)
-	use nrtype
+	use numerics_type
 	use constants
 	use variables, only : theta_q_sat, t1old
 	implicit none
-	real(sp), intent(in) :: p
-	real(sp) :: calc_theta_q2
-	real(sp) :: ws
+	real(wp), intent(in) :: p
+	real(wp) :: calc_theta_q2
+	real(wp) :: ws
 	ws=eps1*svp_liq(t1old)/(p-svp_liq(t1old))
-	calc_theta_q2=t1old*(1e5_sp/p)**(ra/cp)*exp(lv*ws/cp/t1old)-theta_q_sat
+	calc_theta_q2=t1old*(1e5_wp/p)**(ra/cp)*exp(lv*ws/cp/t1old)-theta_q_sat
 
 	end function calc_theta_q2    
 
@@ -416,14 +416,14 @@
 	!>@param[in] t: temperature
 	!>@return svp_liq: saturation vapour pressure over liquid water
 	function svp_liq(t)
-		use nrtype
+		use numerics_type
 		use constants, only : ttr
 		implicit none
-		real(sp), intent(in) :: t
-		real(sp) :: svp_liq
-		svp_liq = 100._sp*6.1121_sp* &
-			  exp((18.678_sp - (t-ttr)/ 234.5_sp)* &
-			  (t-ttr)/(257.14_sp + (t-ttr)))
+		real(wp), intent(in) :: t
+		real(wp) :: svp_liq
+		svp_liq = 100._wp*6.1121_wp* &
+			  exp((18.678_wp - (t-ttr)/ 234.5_wp)* &
+			  (t-ttr)/(257.14_wp + (t-ttr)))
 	end function svp_liq
 
 

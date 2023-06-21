@@ -4,6 +4,7 @@ BAM_DIR = wmm/bam
 BAM_DIR2 = pamm/bam
 SFVT_DIR = sfvt
 PAMM_DIR = pamm
+OSNF_DIR = $(SFVT_DIR)/osnf
 
 .PHONY: mpm_code cleanall
 .PHONY: wmm_code cleanall
@@ -36,6 +37,7 @@ RANLIB = ranlib
 OBJ = o
 FFLAGS = $(OPT)  $(DEBUG) -w -o 
 FFLAGS2 =  $(DEBUG) -w -O3 -o 
+VAR_TYPE = 1 # 0 single, 1 double
 
 
 main.exe	:  model_lib.a  main.$(OBJ) variables.$(OBJ) initialisation.$(OBJ) driver_code.$(OBJ) \
@@ -47,43 +49,27 @@ main.exe	:  model_lib.a  main.$(OBJ) variables.$(OBJ) initialisation.$(OBJ) driv
 	     		  $(SFVT_DIR)/model_lib.a  \
 	     		 -lm model_lib.a -L$(PAMM_DIR) \
 		${NETCDFLIB} -I ${NETCDFMOD} ${NETCDF_LIB} $(DEBUG)
-model_lib.a	:   nrtype.$(OBJ) nr.$(OBJ) nrutil.$(OBJ) locate.$(OBJ) polint.$(OBJ) \
-				rkqs.$(OBJ) rkck.$(OBJ) odeint.$(OBJ) zbrent.$(OBJ) \
-				hygfx.$(OBJ) 
-	$(AR) rc model_lib.a nrutil.$(OBJ) locate.$(OBJ) polint.$(OBJ) \
-				rkqs.$(OBJ) rkck.$(OBJ) odeint.$(OBJ) zbrent.$(OBJ) \
-				hygfx.$(OBJ) 
-locate.$(OBJ)	: locate.f90
-	$(FOR) locate.f90 $(FFLAGS)locate.$(OBJ)
-polint.$(OBJ)	: polint.f90
-	$(FOR) polint.f90 $(FFLAGS)polint.$(OBJ)
-nrtype.$(OBJ)	: nrtype.f90
-	$(FOR) nrtype.f90 $(FFLAGS)nrtype.$(OBJ)
-nr.$(OBJ)	: nr.f90 
-	$(FOR) nr.f90 $(FFLAGS)nr.$(OBJ)
-nrutil.$(OBJ)	: nrutil.f90
-	$(FOR) nrutil.f90 $(FFLAGS)nrutil.$(OBJ)
-rkqs.$(OBJ)	: rkqs.f90
-	$(FOR) rkqs.f90 $(FFLAGS)rkqs.$(OBJ)	
-rkck.$(OBJ)	: rkck.f90
-	$(FOR) rkck.f90 $(FFLAGS)rkck.$(OBJ)	
-odeint.$(OBJ)	: odeint.f90
-	$(FOR) odeint.f90 $(FFLAGS)odeint.$(OBJ)	
-zbrent.$(OBJ)	: zbrent.f90
-	$(FOR) zbrent.f90 $(FFLAGS2)zbrent.$(OBJ)	
-variables.$(OBJ) : variables.f90
-	$(FOR) variables.f90 $(FFLAGS)variables.$(OBJ)
-initialisation.$(OBJ) : initialisation.f90 mpm_code
-	$(FOR) initialisation.f90 $(FFLAGS)initialisation.$(OBJ) -I$(MPM_DIR)
-advection.$(OBJ) : advection.f90 
-	$(FOR) advection.f90 $(FFLAGS)advection.$(OBJ)
+model_lib.a	:   sfvt_code
+	$(AR) rc model_lib.a $(OSNF_DIR)/numerics.$(OBJ) $(OSNF_DIR)/zeroin.$(OBJ) $(OSNF_DIR)/sfmin.$(OBJ) \
+				$(OSNF_DIR)/fmin.$(OBJ) $(OSNF_DIR)/r1mach.$(OBJ) \
+                $(OSNF_DIR)/d1mach.$(OBJ) $(OSNF_DIR)/dfsid1.$(OBJ) \
+                $(OSNF_DIR)/poly_int.$(OBJ) $(OSNF_DIR)/find_pos.$(OBJ) \
+                $(OSNF_DIR)/svode.$(OBJ) \
+                $(OSNF_DIR)/slinpk.$(OBJ) $(OSNF_DIR)/vode.$(OBJ) \
+                $(OSNF_DIR)/dlinpk.$(OBJ) $(OSNF_DIR)/vode_integrate.$(OBJ) \
+                $(OSNF_DIR)/erfinv.$(OBJ) $(OSNF_DIR)/tridiagonal.$(OBJ) \
+                $(OSNF_DIR)/hygfx.$(OBJ) $(OSNF_DIR)/random.$(OBJ)				
+variables.$(OBJ) : variables.f90 sfvt_code
+	$(FOR) variables.f90 -I$(OSNF_DIR) $(FFLAGS)variables.$(OBJ)
+initialisation.$(OBJ) : initialisation.f90 mpm_code sfvt_code
+	$(FOR) initialisation.f90 -I$(OSNF_DIR) $(FFLAGS)initialisation.$(OBJ) -I$(MPM_DIR)
+advection.$(OBJ) : advection.f90 sfvt_code
+	$(FOR) advection.f90 -I$(OSNF_DIR) $(FFLAGS)advection.$(OBJ)
 driver_code.$(OBJ) : driver_code.f90 advection.$(OBJ) \
     mpm_code wmm_code sfvt_code pamm_code 
 	$(FOR) driver_code.f90  \
 		-I ${NETCDFMOD} $(FFLAGS)driver_code.$(OBJ) -I$(MPM_DIR) -I$(WMM_DIR) -I$(SFVT_DIR) \
-		-I$(PAMM_DIR)
-hygfx.$(OBJ) : hygfx.for 
-	$(FOR) hygfx.for $(FFLAGS)hygfx.$(OBJ) 
+		-I$(PAMM_DIR) -I$(OSNF_DIR) 
 main.$(OBJ)   : main.f90 variables.$(OBJ) initialisation.$(OBJ) driver_code.$(OBJ) \
 				mpm_code wmm_code pamm_code
 	$(FOR)  main.f90 -I ${NETCDFMOD} -I${MPM_DIR} -I${WMM_DIR} -I${PAMM_DIR} \

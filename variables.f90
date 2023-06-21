@@ -3,7 +3,7 @@
 	!>@brief
 	!>variables for the simple cloud model
     module variables
-    use nrtype
+    use numerics_type
 	!>@author
 	!>Paul J. Connolly, The University of Manchester
 	!>@brief
@@ -16,9 +16,9 @@
                             iqv, iqc, iqr, iqi, iqs, iqg, inc, inr, ini, ins, ing, &
                             iai, &
                             cat_am, cat_c, cat_r, cat_i
-            real(sp) :: dz, dt
-            real(sp), dimension(:,:), allocatable :: q, qold, precip
-            real(sp), dimension(:), allocatable :: theta, p, rho, z, t, u, dz2
+            real(wp) :: dz, dt
+            real(wp), dimension(:,:), allocatable :: q, qold, precip
+            real(wp), dimension(:), allocatable :: theta, p, rho, z, t, u, dz2
             
             
             ! point to the start and end of a category
@@ -31,8 +31,8 @@
         type sounding
             ! variables for grid
             integer(i4b) :: n_levels
-            real(sp), dimension(:,:), allocatable :: q
-            real(sp), dimension(:), allocatable :: theta, p, z, rh
+            real(wp), dimension(:,:), allocatable :: q
+            real(wp), dimension(:), allocatable :: theta, p, z, rh
         end type sounding
 
 
@@ -57,7 +57,7 @@
         ! constants
         integer(i4b), parameter :: nlevels_r=1000
         logical :: micro_init=.true., adiabatic_prof=.false.
-        real(sp) :: adiabatic_frac
+        real(wp) :: adiabatic_frac
         logical :: monotone=.true.,theta_flag=.false., &
         			hm_flag=.true.,aero_prof_flag=.true.,ice_flag=.false., &
         			wr_flag=.true.,rm_flag=.true., heyms_west=.true.
@@ -67,10 +67,10 @@
         character (len=200) :: aero_nmlfile = ' '
 
         ! variables for model
-        real(sp), allocatable, dimension(:,:) :: q_read !nq x nlevels_r
-        real(sp), dimension(nlevels_r) :: theta_read,rh_read, &
+        real(wp), allocatable, dimension(:,:) :: q_read !nq x nlevels_r
+        real(wp), dimension(nlevels_r) :: theta_read,rh_read, &
                   z_read
-        real(sp) :: dz,dt, runtime, psurf, theta_surf,tsurf, t_cbase, t_ctop, t_thresh, &
+        real(wp) :: dz,dt, runtime, psurf, theta_surf,tsurf, t_cbase, t_ctop, t_thresh, &
         			t_thresh2, w_peak, w_cb, theta_q_sat,t1old, p111, num_ice, mass_ice, &
         			num_drop
         integer(i4b) :: kp, n_levels_s, ord, o_halo,halo, updraft_type
@@ -92,15 +92,15 @@
 
 
     module constants
-        use nrtype
+        use numerics_type
 	!>@author
 	!>Paul J. Connolly, The University of Manchester
 	!>@brief
 	!>constants for the simple cloud model
 
         implicit none
-        real(sp), parameter :: ra=287.0_sp, cp=1005.0_sp, grav=9.81_sp, &
-        						rv=461._sp, eps1=ra/rv, lv=2.5e6_sp, ttr=273.15_sp
+        real(wp), parameter :: ra=287.0_wp, cp=1005.0_wp, grav=9.81_wp, &
+        						rv=461._wp, eps1=ra/rv, lv=2.5e6_wp, ttr=273.15_wp
     end module constants
 
 
