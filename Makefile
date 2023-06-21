@@ -11,7 +11,9 @@ OSNF_DIR = $(SFVT_DIR)/osnf
 .PHONY: sfvt_code cleanall
 .PHONY: pamm_code cleanall
 CLEANDIRS = $(MPM_DIR) $(WMM_DIR) $(WMM_DIR)/bam $(SFVT_DIR) $(PAMM_DIR) $(PAMM_DIR)/sfvt \
-       $(PAMM_DIR)/bam ./
+       $(PAMM_DIR)/bam $(MPM_DIR)/osnf $(WMM_DIR)/bam/osnf $(SFVT_DIR)/osnf \
+       $(PAMM_DIR)/sfvt/osnf \
+       $(PAMM_DIR)/bam/osnf  ./
 
 DEBUG = -fbounds-check -g
 MPI    =#-DMPI1
