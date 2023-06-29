@@ -45,10 +45,9 @@ VAR_TYPE = 1 # 0 single, 1 double
 main.exe	:  model_lib.a  main.$(OBJ) variables.$(OBJ) initialisation.$(OBJ) driver_code.$(OBJ) \
 		 advection.$(OBJ) mpm_code wmm_code sfvt_code pamm_code
 	$(FOR2) $(FFLAGS2)main.exe main.$(OBJ) variables.$(OBJ) initialisation.$(OBJ) driver_code.$(OBJ) \
-		$(MPM_DIR)/micro_lib.a $(WMM_DIR)/wmicro_lib.a  $(BAM_DIR)/bam_lib.a $(SFVT_DIR)/model_lib.a \
+		$(MPM_DIR)/micro_lib.a $(WMM_DIR)/wmicro_lib.a  $(BAM_DIR)/bam_lib.a \
 		advection.$(OBJ)  \
 	     		 $(PAMM_DIR)/pmicro_lib.a $(MPM_DIR)/micro_lib.a $(WMM_DIR)/wmicro_lib.a \
-	     		  $(SFVT_DIR)/model_lib.a  \
 	     		 -lm model_lib.a -L$(PAMM_DIR) \
 		${NETCDFLIB} -I ${NETCDFMOD} ${NETCDF_LIB} $(DEBUG)
 model_lib.a	:   sfvt_code
