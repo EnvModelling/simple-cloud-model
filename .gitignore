@@ -9,4 +9,5 @@ doxygen
 *.run2
 namelist.andreas
 *.dSYM
+__pycache__
 
