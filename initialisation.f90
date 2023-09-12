@@ -140,28 +140,31 @@
     dz2=dz
 	q=0._wp
 	if (adiabatic_prof) then
-		! calculate the dry adiabat:
+		! calculate the dry adiabat from p-surface to pcb. z1 is the actual height 
+		! of cloud base - saved for later:
 		theta_surf=tsurf*(1.e5_wp/psurf)**(ra/cp)
 		p1=psurf
 		z1=0._wp
 		p2=1.e5_wp*(t_cbase/theta_surf)**(cp/ra)
 		htry=p2-psurf
-		eps2=1e-5_wp
+		eps2=1.e-5_wp
 		call vode_integrate(z1,p1,p2,eps2,htry,hmin,hydrostatic1)
 		p1=p2
-		
-		! integrate going downwards - dry adiabatic layer
+
+		! integrate going downwards - dry adiabatic. This is just for the level
+		! "below the ground" - outputs the pressure
 		p(1)=psurf
 		do i=1,-o_halo+2,-1
 			z11=z(i)
 			z22=z(i-1)
 			p11=p(i)
 			htry=-dz
-			hmin=-1.e-2_wp
+			hmin=1.e-2_wp
 			call vode_integrate(p11,z11,z22,eps2,htry,hmin,hydrostatic1a)
 			p(i-1)=p11(1)
 		enddo
-		! integrate going upwards - dry adiabatic layer
+		! integrate going upwards - dry adiabatic layer. This is just for levels 
+		! up to z1 - outputs the pressure
 		p(1)=psurf
 		do i=1,kp+o_halo-1
 			z11=z(i)
@@ -174,7 +177,7 @@
 			p(i+1)=p11(1)
 		enddo
 		istore=i-1
-		! adiabatic temperature
+		! dry adiabatic temperature
 		t(-o_halo+1:istore)=theta_surf*(p(-o_halo+1:istore)/1.e5_wp)**(ra/cp)
 		! adiabatic vapour mixing ratio
 		q(-o_halo+1:istore,iqv)=eps1*svp_liq(t_cbase)/(p1-svp_liq(t_cbase))
@@ -234,7 +237,7 @@
 			endif
 		enddo
 
-		! integrate going upwards - dry adiabatic layer
+		! integrate going upwards - dry adiabatic layer above the cloud
 		theta1=t_ctop*(1.e5_wp/p_ctop)**(ra/cp)
 		istore2=istore2+1
 		do i=istore2,kp+o_halo-1
