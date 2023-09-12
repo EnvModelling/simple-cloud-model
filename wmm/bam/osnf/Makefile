@@ -13,6 +13,8 @@ NETCDFLIB=-L ${NETCDF_FOR}/lib/  \
           -L ${NETCDF_C}/lib/
 NETCDFMOD= ${NETCDF_FOR}/include/
 
+NETCDFLIB=-L/usr/lib/x86_64-linux-gnu/
+NETCDFMOD=/usr/include/
 
 FOR = gfortran -c  
 FOR2 = gfortran  

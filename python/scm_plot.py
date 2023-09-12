@@ -41,12 +41,12 @@ def plot_model_run():
     pgon3=plt.Polygon(pgon,color='r',alpha=1)
     pgon4=plt.Polygon(pgon,color='r',alpha=1)
     
-    outputDir='/tmp/' 
+    outputDir='/tmp/' + username + '/'
     fileName=outputDir + 'output.nc'
     
     nc=Dataset(fileName)
     
-    time=nc['time'][:]
+    time=nc['time'][:]*u/1000.*60.
     z=nc['z'][:]
     q=nc['q'][:,:,:]
     
@@ -54,41 +54,41 @@ def plot_model_run():
     #plt.ion()
     fig=plt.figure(figsize=(12,6))     
     ax=plt.subplot(221)
-    plt.pcolor(time/60,z/1000.,q[:,:,14].T/1.e6,shading='auto')
-    plt.xlabel('time (mins)')
+    plt.pcolor(time/60,z/1000.,q[:,:,14].T/1.e6)
+    plt.xlabel('distance (km)')
     plt.ylabel('z (km)')
     plt.clim((0,m1))
     plt.text(0.1,0.9,'(a) CDNC',color='white',transform=ax.transAxes)
     cbar=plt.colorbar()
     cbar.set_label('number of cloud drops (cm$^{-3}$)')
-    #ax.add_patch(pgon1)
+    ax.add_patch(pgon1)
     
     ax=plt.subplot(222)
-    plt.pcolor(time/60,z/1000.,q[:,:,15].T*1000.,shading='auto')
-    plt.xlabel('time (mins)')
+    plt.pcolor(time/60,z/1000.,q[:,:,15].T*1000.)
+    plt.xlabel('distance (km)')
     plt.ylabel('z (km)')
     plt.text(0.1,0.9,'(b) $q_c$',color='white',transform=ax.transAxes)
     cbar=plt.colorbar()
     cbar.set_label('mass of cloud drops (g kg$^{-1}$)')
-    #ax.add_patch(pgon2)
+    ax.add_patch(pgon2)
     
     ax=plt.subplot(223)
-    plt.pcolor(time/60,z/1000.,q[:,:,23].T*1000.,shading='auto')
-    plt.xlabel('time (mins)')
+    plt.pcolor(time/60,z/1000.,q[:,:,23].T*1000.)
+    plt.xlabel('distance (km)')
     plt.ylabel('z (km)')
     plt.text(0.1,0.9,'(c) $q_r$',color='white',transform=ax.transAxes)
     cbar=plt.colorbar()
     cbar.set_label('mass of rain drops (g kg$^{-1}$)')
-    #ax.add_patch(pgon3)
+    ax.add_patch(pgon3)
     
     ax=plt.subplot(224)
-    plt.pcolor(time/60,z/1000.,q[:,:,30].T/1000.,shading='auto')
-    plt.xlabel('time (mins)')
+    plt.pcolor(time/60,z/1000.,q[:,:,30].T/1000.)
+    plt.xlabel('distance (km)')
     plt.ylabel('z k(m)')
     plt.text(0.1,0.9,'(d) $N_{ice}$',color='white',transform=ax.transAxes)
     cbar=plt.colorbar()
     cbar.set_label('number of ice crystals (L$^{-1}$)')
-    #ax.add_patch(pgon4)
+    ax.add_patch(pgon4)
     
     
 #     fig2=plt.figure()
@@ -100,8 +100,7 @@ def plot_model_run():
     nc.close()
     #plt.show()
     
-    fig.savefig('/tmp/scm_plot.png',format='png')
+    fig.savefig('/tmp/' + username + '/scm_plot.png',format='png')
     
 if __name__=="__main__":
     plot_model_run()
-
