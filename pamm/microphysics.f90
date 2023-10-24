@@ -2576,11 +2576,11 @@
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! Scale process rates so that cannot get negative values                         !
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        call scale_microphysics(praci(k),rraci(k), piacr(k), riacr(k), &
-            nin_c, nin_r, massc_nucc(k), massr_nucr(k), &
-            piacw(k), rihal(k), pidep(k), pisub(k), riaci(k), &
-            pimlt(k), prevp(k), praut(k), pracw(k), rcwacr(k), rraut(k), rrsel(k), &
-            rcwaut(k),rcwsel(k), q(k,inc),q(k,iqc),q(k,inr), q(k,iqr),q(k,ini),q(k,iqi),dt)
+!         call scale_microphysics(praci(k),rraci(k), piacr(k), riacr(k), &
+!             nin_c, nin_r, massc_nucc(k), massr_nucr(k), &
+!             piacw(k), rihal(k), pidep(k), pisub(k), riaci(k), &
+!             pimlt(k), prevp(k), praut(k), pracw(k), rcwacr(k), rraut(k), rrsel(k), &
+!             rcwaut(k),rcwsel(k), q(k,inc),q(k,iqc),q(k,inr), q(k,iqr),q(k,ini),q(k,iqi),dt)
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         
         
