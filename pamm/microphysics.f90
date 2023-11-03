@@ -69,7 +69,7 @@
     real(wp), parameter :: rhow=1000._wp, rhoi=920._wp,lv=2.5e6_wp,ls=2.8e6_wp,lf=ls-lv, &
     					   cp=1005._wp, cw=4187._wp, cice=2093._wp, r=8.314_wp, &
     						mw=18e-3_wp, ma=29e-3_wp, ra=r/ma,rv=r/mw, eps1=ra/rv, &
-    						ttr=273.15_wp, joules_in_an_erg=1.0e-7_wp, &
+    						ttr=273.15_wp, t_hom=ttr-36._wp, joules_in_an_erg=1.0e-7_wp, &
     						joules_in_a_cal=4.187_wp, &
     						gamma_liq=0.072_wp, DEcrit=0.2_wp, &
     						oneoversix=1._wp/6._wp, dtt=10.e-6_wp, &
@@ -1872,6 +1872,7 @@
 				pracw, & ! accretion of liquid cloud by rain
 				praut, & ! autoconversion from liquid cloud to rain (coalescence)
 				prevp, & ! evaporation of rain
+				rrevp, & ! evaporation of rain
 				psacr,rsacr, & ! accretion of rain by snow to form graupel
 				psaci, & ! accretion of cloud ice by snow
 				rsacs, & ! aggregation of snowflakes
@@ -1916,6 +1917,7 @@
 	! coalescence efficiencies
 	real(wp), dimension(1-o_halo:kp+o_halo) :: egi_dry, egs_dry, esi, eii, ess
 	real(wp) :: qold,des_dt,dqs_dt,err,cond,temp1, dummy1,dummy2, dummy3,&
+	            dummy4, &
 	            n_mix,s_mix,m_mix, nin_c, din_c,nin_r,din_r, n_tot, s_tot, m_tot
 	
 	real(wp), dimension(1-o_halo:kp+o_halo) :: gamma_t,dep_density, qold1
@@ -1967,6 +1969,7 @@
 	pracw=0._wp
 	praut=0._wp
 	prevp=0._wp
+	rrevp=0._wp
 	psacr=0._wp
 	rsacr=0._wp
 	psaci=0._wp
@@ -2037,14 +2040,14 @@
             lam_i_star = lam_i*a_hw
         
             ! calculate fall-speeds
-            vni(:)=max(fall_n_i_hw*pre_hw*lam_i* &
+            vni(:)=0.7_wp*max(fall_n_i_hw*pre_hw*lam_i* &
                 (1._wp/(gam3ai*lam_i_star**(di/2._wp)+gam3bi*lam_i_star**(di) )),0._wp)
-            vqi(:)=max(fall_q_i_hw*pre_hw*lam_i* &
+            vqi(:)=0.7_wp*max(fall_q_i_hw*pre_hw*lam_i* &
                 (1._wp/(gam4ai*lam_i_star**(di/2._wp)+gam4bi*lam_i_star**(di) )),0._wp)
                 
             ! precipitation - this one is actually number flux
             ! the Magic Function - standard, but with n0
-            precip(1:kp,2)=n_i(1:kp)*pre_hw(1:kp)*lam_i(1:kp)**(-alpha_i)/rho(1:kp)* &
+            precip(1:kp,2)=0.7_wp*n_i(1:kp)*pre_hw(1:kp)*lam_i(1:kp)**(-alpha_i)/rho(1:kp)* &
              (1._wp/(gam3ai*lam_i_star(1:kp)**(di/2._wp)+gam3bi*lam_i_star(1:kp)**(di) ))
         
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -2085,11 +2088,11 @@
     vnc(:)=max(fall_n_c*rho_fac * lam_c**(1._wp+alpha_c) / &
     	(lam_c+f_c)**(1._wp+alpha_c+b_c), 1.e-3_wp)
     ! coalescence efficiencies
-    egi_dry(1:kp)=0.2_wp*exp(0.08*(t(1:kp)-ttr))
-    egs_dry(1:kp)=0.2_wp*exp(0.08*(t(1:kp)-ttr))
-    esi(1:kp)=0.2_wp*exp(0.08*(t(1:kp)-ttr))
-    eii(1:kp)=0.2_wp*exp(0.08*(t(1:kp)-ttr))
-    ess(1:kp)=0.2_wp*exp(0.08*(t(1:kp)-ttr))
+    egi_dry(:)=0.2_wp*exp(0.08*(t(:)-ttr))
+    egs_dry(:)=0.2_wp*exp(0.08*(t(:)-ttr))
+    esi(:)=0.2_wp*exp(0.08*(t(:)-ttr))
+    eii(:)=0.2_wp*exp(0.08*(t(:)-ttr))
+    ess(:)=0.2_wp*exp(0.08*(t(:)-ttr))
     
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
@@ -2098,7 +2101,7 @@
    
     
     ! loop over all levels
-    do k=1,kp
+    do k=-o_halo+1,kp+o_halo   
  		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		! condensation of liquid water                                                   !
 		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -2135,7 +2138,7 @@
     ! calculate gamma_t and dep_density for ice growth model                             !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     if(ice_flag) then
-        do k=1,kp
+        do k=-o_halo+1,kp+o_halo   
             call chen_and_lamb_anc(t(k),q(k,1),smr_i(k),rhoa(k), &
                                     gamma_t(k), dep_density(k))    
         enddo
@@ -2322,9 +2325,14 @@
         
         
         
+        
+        
+        
 		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! Calculate process rates                                                        !
 		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		nin_c=0._wp
+		nin_r=0._wp
 		if(ice_flag.and.(t(k).lt.ttr)) then
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             ! 1. collisions between precipitating particles of different species         !
@@ -2332,61 +2340,43 @@
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             call collisions_between_precipitating_particles(praci(k),rraci(k),piacr(k), &
                 riacr(k), n_r(k), n_i(k), rho(k), vqr(k), vqi(k), vnr(k), vni(k), &
-                lam_r(k), lam_i(k))
+                lam_r(k), lam_i(k),q(k,iqi), q(k,iqi+2), q(k,iqi+4), q(k,iqr), &
+                a_hw1(k), pre_hw(k), heyms_west)
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 
                 
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             ! 2. mode 1 SIP during collisions                                            !
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            if(mode1_ice_flag.eq.1) then
+            if((mode1_ice_flag.eq.1).and.(t(k).lt.268._wp)) then
                 ! n_frag_m1c (collisional) is a delta
                 call mode1_sip_collisional(lam_r(k), lam_i(k), t(k), n_r(k), n_i(k), &
                     q(k,iqi), q(k,iqi+2), q(k,iqi+4), q(k,iqr), &
                     a_hw1(k), pre_hw(k), dt, heyms_west, nfrag_m1c(k))
-                    
-                ! increase ice crystal number
-                q(k  ,ini)=q(k  ,ini)+nfrag_m1c(k)
-                ! increase ice crystal shape factor
-                q(k  ,iqi+1)=q(k  ,iqi+1)+nfrag_m1c(k)
-                ! increase ice crystal monomers
-                q(k  ,iqi+3)=q(k  ,iqi+3)+nfrag_m1c(k)
             endif
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             
                             
-
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             ! 3. mode 2 SIP                                                              !
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            if(mode2_ice_flag.eq.1) then
+            if((mode2_ice_flag.eq.1).and.(t(k).lt.268._wp)) then
                 ! n_frag_m2 is a delta
                 call mode2_sip_collisional(lam_r(k), lam_i(k), t(k), n_r(k), n_i(k), &
                     q(k,iqi), q(k,iqi+2), q(k,iqi+4), q(k,iqr), &
                     a_hw1(k), pre_hw(k), dt, heyms_west, nfrag_m2(k))
-            
-                    ! increase ice crystal number
-                    q(k  ,ini)=q(k  ,ini)+nfrag_m2(k)
-                    ! increase ice crystal shape factor
-                    q(k  ,iqi+1)=q(k  ,iqi+1)+nfrag_m2(k)
-                    ! increase ice crystal monomers
-                    q(k  ,iqi+3)=q(k  ,iqi+3)+nfrag_m2(k)
             endif
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             ! 4. Ice-ice collisions SIP                                                  !
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             ! n_frag_ii is a delta
+            if (t(k).lt.268._wp) &
             call ice2_sip_collisional(lam_i(k), t(k), n_i(k), &
                 q(k,ini), q(k,iqi), q(k,iqi+2), q(k,iqi+4), q(k,iqi+1), &
                 a_hw1(k), pre_hw(k), dt, heyms_west, nfrag_ii(k),coll_breakup_flag1)
-        
-            ! increase ice crystal number
-            q(k  ,ini)=q(k  ,ini)+nfrag_ii(k)
-            ! increase ice crystal shape factor
-            q(k  ,iqi+1)=q(k  ,iqi+1)+nfrag_ii(k)
-            ! increase ice crystal monomers
-            q(k  ,iqi+3)=q(k  ,iqi+3)+nfrag_ii(k)
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
@@ -2425,26 +2415,43 @@
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             ! 6. collection of cloud by ice - riming                                     !
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		    if((q(k,iqc).gt.qsmall) .and. (q(k,iqi).gt.qsmall)) then
+		    if(((q(k,iqc).gt.qsmall) .and. (q(k,iqi).gt.qsmall)) .and. rm_flag) then
 		        ! piacw is a rate
 		        if(heyms_west) then
-                    piacw(k)=max(0.25_wp*pi*n_i(k)*pre_hw(k)*&
-                        lam_i(k)**(-2._wp-alpha_i) * eiw * q(k,iqc)*&
-                     1._wp/(gam6ai*lam_i_star(k)**(di/2._wp)+gam6bi*lam_i_star(k)**(di)),&
-                        0._wp)		        
+		        
+                    lambda0i=lam_i(k)
+                    ci_new=pi/6._wp*min(910._wp, &
+                        q(k,iqi)/(q(k,iqi+2)+q(k,iqi+4)/500._wp))
+                    mrthresh=ci_new*1.e-6_wp**di
+                    miupper=ci_new*(pthreshi/lambda0i)**di
+
+                    n0i=n_i(k)
+                    a_hw_new=a_hw1(k)
+                    pre_hw_new=pre_hw(k)
+                    ! only call integral if mrupper gt mrthresh
+                    if(miupper.gt.mrthresh) then
+                        ! riming
+                        piacw(k)=romb(integral_rime_hw,mrthresh,miupper)*q(k,iqc)
+                        miupper=((q(k,iqc)*6._wp)/ &
+                            ((q(k,inc)+qsmall)*pi*rhow))**oneoverthree
+                        piacw(k)=piacw(k)*min(max(0.0_wp, &
+                            1._wp/(50.e-6_wp-10.e-6_wp)*miupper-0.25_wp ),1.0_wp)
+                    endif
+		        
+		        
+!                     piacw(k)=max(0.25_wp*pi*n_i(k)*pre_hw(k)*&
+!                         lam_i(k)**(-2._wp-alpha_i) * eiw * 0.2 * q(k,iqc) &
+!                       /(gam6ai*lam_i_star(k)**(di*0.5_wp)+gam6bi*lam_i_star(k)**(di)),&
+!                         0._wp)		        
 		        else
                     piacw(k)=max(mass_iacw * n_i(k)* eiw *q(k,iqc)*rho_fac(k) / &
                             (lam_i(k)+f_i)**(3._wp+b_i+alpha_i),0._wp)
                 endif                                
-!                 dummy1=q(k,iqi) ! total mass of particle
                 piacw(k)=max(min(piacw(k),q(k,iqc)/dt),0._wp)
-                piacw(k)=max(min(piacw(k),(ttr-t(k))*cp/lf)/dt,0._wp)
+                piacw(k)=min(piacw(k),max((ttr-t(k))*cp/lf/dt,0._wp))
             endif
 		    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
-
-		
 
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             ! 7. h-m process                                                             !
@@ -2456,9 +2463,11 @@
             endif
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             ! 8. deposition and sublimation                                              !
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            phi=1._wp
 		    if(q(k,iqi).gt.qsmall) then
 		        if(heyms_west) then
                     nu_ice=2._wp*pi*n_i(k) / rho(k) * &
@@ -2478,7 +2487,7 @@
                 endif
                 ab_ice=ls**2 / (ktherm1*rv*t(k)**2) + 1._wp/(rho(k)*smr_i(k)*diff1)
                 ! chen and lamb growth rates
-                phi=min(max(q(k,iqi+1) / (q(k,ini)+qsmall),1.e-5_wp),100._wp)
+                phi=min(max(q(k,iqi+1) / (q(k,ini+4)+qsmall),1.e-5_wp),100._wp)
                 nu_ice=nu_ice*chen_and_lamb_cap_fac(phi)
         
                 ! non chen and lamb bit        
@@ -2492,6 +2501,7 @@
                     pisub(k)=min(-min(ice_dep,0._wp),-(q(k,1)-smr_i(k))/dt)
                 endif
             endif
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             
             
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -2501,8 +2511,11 @@
                 ! riaci is a rate
                 if(heyms_west) then
                     ! collisions
-                    dummy1=max(a_hw1(k)*a_hw1(k)*pre_hw(k)*iice2*n_i(k)*n_i(k) / &
-                            lam_i(k)**(3._wp+2.*wp*alpha_i+di),0._wp)
+!                     dummy1=max(a_hw1(k)*a_hw1(k)*pre_hw(k)*iice2*n_i(k)*n_i(k) / &
+!                             lam_i(k)**(3._wp+2.*wp*alpha_i+di),0._wp)
+                    call collisions_between_ice_particles(dummy1,n_i(k), rho(k), &
+                         lam_i(k), q(k,iqi),q(k,iqi+2),q(k,iqi+4),a_hw1(k),pre_hw(k))
+                            
                 else
                     ! collisions
                     dummy1=max(iice*n_i(k)**2._wp*rho_fac(k) / &
@@ -2511,24 +2524,20 @@
                 ! aggregation rate
                 riaci(k)=eii(k)*dummy1
             endif
-            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-            praci(k)=min(praci(k),q(k,iqi)/dt)
-            rraci(k)=min(rraci(k),q(k,ini)/dt)
-            piacr(k)=min(piacr(k),q(k,iqr)/dt)   	
-            riacr(k)=min(riacr(k),q(k,inr)/dt)
-        
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!        
         endif
+		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! 10. melting of ice                                                             !
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		if((t(k).gt.ttr).and.ice_flag) then
-		    ! pimlt is a rate
-			pimlt(k)=q(k,iqi)/dt+ &
-			    (pidep(k)-pisub(k)+piacw(k)) ! ice melts instantaneously
+        if((t(k).gt.ttr).and.ice_flag) then
+            ! pimlt is a rate
+            pimlt(k)=q(k,iqi)/dt+ &
+                (pidep(k)-pisub(k)+piacw(k)) ! ice melts instantaneously
         endif
-		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
 		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -2573,90 +2582,28 @@
         endif
 		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        ! Scale process rates so that cannot get negative values                         !
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!         call scale_microphysics(praci(k),rraci(k), piacr(k), riacr(k), &
-!             nin_c, nin_r, massc_nucc(k), massr_nucr(k), &
-!             piacw(k), rihal(k), pidep(k), pisub(k), riaci(k), &
-!             pimlt(k), prevp(k), praut(k), pracw(k), rcwacr(k), rraut(k), rrsel(k), &
-!             rcwaut(k),rcwsel(k), q(k,inc),q(k,iqc),q(k,inr), q(k,iqr),q(k,ini),q(k,iqi),dt)
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         
-        
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        ! Move aerosol based on process rates                                            !
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        ! 1. aerosol from rain to ice due to collisions
-        ! 2. aerosol from cloud water to ice - nucleation
-        ! 3. aerosol from rain water to ice - nucleation
-        ! 4. if ice sublimates - put in to aerosol
-        ! 5. if liquid evaporates - put into aerosol
-        ! 6. if rain evaporates - put into aerosol
-        ! 7. if ice melts, put into rain
-        ! 8. riming, put liquid aerosol into ice
-        ! 4-6 add up total of pisub, liquidevp, prevp and partition into aerosol
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-
-        
-        
-        
-        
-        ! put aerosol from rain in ice, should be praci (assuming piacr goes to ice anyway)
-		if(ice_flag.and.(t(k).lt.268._wp)) then
-			
+        if(ice_flag) then
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            ! remove aerosol from rain water and add to ice due to collisions with precip!
+            ! Scale process rates so that cannot get negative values                     !
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            do i=1,n_mode-1
-                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                ! remove from rain water:                                                !
-                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                ! number in aerosol modes
-                dummy1=q(k,cst(cat_r)+2+(i-1)*3)*piacr(k)*dt/q(k,  iqr)
-                q(k,cst(cat_r)+(i-1)*3+2)=q(k,cst(cat_r)+(i-1)*3+2)-dummy1 
-                
-                ! surface area in aerosol modes
-                dummy2=q(k,cst(cat_r)+3+(i-1)*3)*piacr(k)*dt/q(k,  iqr)
-                q(k,cst(cat_r)+(i-1)*3+3)=q(k,cst(cat_r)+(i-1)*3+3)-dummy2
-                
-                ! mass in aerosol modes
-                dummy3=q(k,cst(cat_r)+4+(i-1)*3)*piacr(k)*dt/q(k,  iqr)
-                q(k,cst(cat_r)+(i-1)*3+4)=q(k,cst(cat_r)+(i-1)*3+4)-dummy3
-                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            call scale_microphysics(praci(k),rraci(k), piacr(k), riacr(k), &
+                nin_c, nin_r, massc_nucc(k), massr_nucr(k), &
+                piacw(k), rihal(k), pidep(k), pisub(k), riaci(k), &
+                pimlt(k), prevp(k), praut(k), pracw(k), rcwacr(k), rraut(k), rrsel(k), &
+                rcwaut(k),rcwsel(k), &
+                q(k,inc),q(k,iqc),q(k,inr), q(k,iqr),q(k,ini),q(k,iqi),t(k),dt)
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        else
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! Scale process rates so that cannot get negative values                     !
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            call scale_microphysics_warm(prevp(k), praut(k), &
+                pracw(k), rcwacr(k), rraut(k), rrsel(k), rcwaut(k),rcwsel(k), &
+                q(k,inc),q(k,iqc),q(k,inr), q(k,iqr),dt)
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!        
+        endif
 
-
-                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                ! add to aerosol particles in ice water                                  !
-                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                ! number in aerosol modes
-                ! qv, n_mode aerosol + 1
-                q(k,iai+(i-1)*3)=q(k,iai+(i-1)*3)+dummy1 
-                
-                ! surface area in aerosol modes
-                q(k,iai+(i-1)*3+1)=q(k,iai+(i-1)*3+1)+dummy2 
-                
-                ! mass in aerosol modes
-                q(k,iai+(i-1)*3+2)=q(k,iai+(i-1)*3+2)+dummy3
-                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            enddo
-
-			! iacr is a source of ice mass only - not number
-            ! increase ice crystal mass
-            q(k  ,iqi)  =q(k  ,iqi)+piacr(k)*dt
-            ! increase rime mass of ice
-            q(k,  iqi+4)=q(k  ,iqi+4)+piacr(k)*dt
-            ! iacr is a sink of rain mass and number
-            q(k,  iqr)  =q(k, iqr)-piacr(k)*dt
-            q(k,  inr)  =q(k, inr)-riacr(k)*dt
-            
-		endif
-        		
-        
-        
-    
     
     
     
@@ -2664,68 +2611,32 @@
         ! ice nucleation block                                                           !
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         if(ice_flag.and.(t(k)<ttr)) then
-            if(q(k,inc) > 0._wp) then
-
-                ! increase ice crystal number
-                q(k  ,ini)=q(k  ,ini)+nin_c+nfrag_nucc(k)
-                ! increase ice crystal mass - added divided by number of cloud, 
-                                ! multiplied by mass of cloud
-                q(k  ,iqi)=q(k  ,iqi)+massc_nucc(k)
-                ! increase ice crystal shape factor
-                q(k  ,iqi+1)=q(k  ,iqi+1)+nin_c+nfrag_nucc(k)
-                ! increase ice crystal volume factor
-                q(k  ,iqi+2)=q(k  ,iqi+2)+massc_nucc(k)/rhoi
-                ! increase ice crystal monomers
-                q(k  ,iqi+3)=q(k  ,iqi+3)+nin_c+nfrag_nucc(k)
-                
-                
-                ! deplete cloudnc
-                !q(k  ,iqc)=q(k  ,iqc)-dummy1
-                q(k,  inc)=q(k,inc)-nin_c
-                pifrw(k)=pifrw(k)+massc_nucc(k)/dt
-                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            
+        
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! ice nucleation from cloud water                                            !
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            if((q(k,inc) > 0._wp).and.(nin_c.gt.0._wp)) then            
                 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 ! remove aerosol from cloud water and add to ice                         !
-                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                n_tot=sum(q(k,cst(cat_c)+2:cen(cat_c)-2:3)) ! total number in cw
-                s_tot=sum(q(k,cst(cat_c)+3:cen(cat_c)-1:3))
-                m_tot=sum(q(k,cst(cat_c)+4:cen(cat_c):3))
-                do i=1,n_mode-1
-                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    ! remove from cloud water:                                           !
-                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    ! number in aerosol modes
-                    dummy1=ln_part_mom(0,din_c,n_mix, sig_aer1(n_mode),d_aer1(n_mode)) * &
-                        q(k,cst(cat_c)+(i-1)*3+2)/n_tot
-                    q(k,cst(cat_c)+(i-1)*3+2)=q(k,cst(cat_c)+(i-1)*3+2)-dummy1
-                    ! surface area in aerosol modes
-                    dummy2=pi* &
-                        ln_part_mom(2,din_c,n_mix, sig_aer1(n_mode),d_aer1(n_mode)) * &
-                        q(k,cst(cat_c)+(i-1)*3+3)/s_tot
-                    q(k,cst(cat_c)+(i-1)*3+3)=q(k,cst(cat_c)+(i-1)*3+3)- dummy2 
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!                
+                call ln_params_and_props_from_integral_moms(n_mode, q(k,inc), &
+                    q(k,cst(cat_c)+3:cst(cat_c)+(n_mode-2)*3+3:3), &
+                    q(k,cst(cat_c)+4:cst(cat_c)+(n_mode-2)*3+4:3), & ! mass 
+                    n_aer1(n_mode),density_core1, molw_core1,nu_core1, &
+                    sig_aer1(n_mode),d_aer1(n_mode),n_mix,s_mix,m_mix)
                     
-                    ! mass in aerosol modes
-                    dummy3=pi/6._wp*density_core1(n_mode)* &
-                        ln_part_mom(3,din_c,n_mix, sig_aer1(n_mode),d_aer1(n_mode)) * &
-                        q(k,cst(cat_c)+(i-1)*3+4)/m_tot
-                    q(k,cst(cat_c)+(i-1)*3+4)=q(k,cst(cat_c)+(i-1)*3+4)- dummy3
-                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                call move_aerosol_larger_than_size(n_mode, &
+                    din_c,n_mix, sig_aer1(n_mode), &
+                    d_aer1(n_mode), density_core1(n_mode), &
+                    q(k,cst(cat_c)+2:cst(cat_c)+(n_mode-2)*3+2:3), & ! number in cw mode
+                    q(k,cst(cat_c)+3:cst(cat_c)+(n_mode-2)*3+3:3), & ! sa in cw mode
+                    q(k,cst(cat_c)+4:cst(cat_c)+(n_mode-2)*3+4:3), & ! mass in cw mode
+                    q(k,iai:iai+(n_mode-2)*3:3), & ! number in ice mode
+                    q(k,iai+1:iai+(n_mode-2)*3+1:3), & !sa in ice mode
+                    q(k,iai+2:iai+(n_mode-2)*3+2:3))  !mass in ice mode
 
-                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    ! add to aerosol particles in ice water                              !
-                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    ! number in aerosol modes
-                    ! qv, n_mode aerosol + 1
-                    q(k,iai+(i-1)*3)=q(k,iai+(i-1)*3)+dummy1 
-                    
-                    ! surface area in aerosol modes
-                    q(k,iai+(i-1)*3+1)=q(k,iai+(i-1)*3+1)+dummy2 
-                    
-                    ! mass in aerosol modes
-                    q(k,iai+(i-1)*3+2)=q(k,iai+(i-1)*3+2)+dummy3
-                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                enddo
+                pifrw(k)=pifrw(k)+massc_nucc(k)/dt
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             endif 
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             ! end ice nucleation from cloud water                                        !
@@ -2735,71 +2646,28 @@
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             ! ice nucleation from rain water                                             !
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            if(q(k,cst(cat_r)) > 0._wp) then
-
-
-                ! increase in ice crystal number
-                q(k  ,ini)=q(k  ,ini)+nin_r+nfrag_nucr(k)
-                ! increase in ice crystal mass
-                q(k  ,iqi)=q(k  ,iqi)+massr_nucr(k)
-                
-                ! increase ice crystal shape factor
-                q(k  ,iqi+1)=q(k  ,iqi+1)+nin_r+nfrag_nucr(k)
-                ! increase ice crystal volume factor
-                q(k  ,iqi+2)=q(k  ,iqi+2)+massr_nucr(k)/rhoi
-                ! increase ice crystal monomers
-                q(k  ,iqi+3)=q(k  ,iqi+3)+nin_r+nfrag_nucr(k)
-
-
-                ! deplete rain
-                !q(k  ,iqr)=q(k  ,iqr)-dummy1
-                q(k,  inr)=q(k,inr)-nin_r
-                pgfr(k)=pgfr(k)+massr_nucr(k)/dt
-                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            
+            if((q(k,cst(cat_r)) > 0._wp).and.(nin_r.gt.0._wp)) then
                 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 ! remove aerosol from rain water and add to ice                          !
                 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                n_tot=sum(q(k,cst(cat_r)+2:cen(cat_r)-2:3))
-                s_tot=sum(q(k,cst(cat_r)+3:cen(cat_r)-1:3))
-                m_tot=sum(q(k,cst(cat_r)+4:cen(cat_r):3))
-                do i=1,n_mode-1
-                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    ! remove from rain water:                                            !
-                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    ! number in aerosol modes
-                    dummy1=ln_part_mom(0,din_r,n_mix, sig_aer1(n_mode),d_aer1(n_mode)) * &
-                        q(k,cst(cat_r)+(i-1)*3+2)/n_tot
-                    q(k,cst(cat_r)+(i-1)*3+2)=q(k,cst(cat_r)+(i-1)*3+2)-dummy1 
+                call ln_params_and_props_from_integral_moms(n_mode, q(k,inr), &
+                    q(k,cst(cat_r)+3:cst(cat_r)+(n_mode-2)*3+3:3), &
+                    q(k,cst(cat_r)+4:cst(cat_r)+(n_mode-2)*3+4:3), & ! mass 
+                    n_aer1(n_mode),density_core1, molw_core1,nu_core1, &
+                    sig_aer1(n_mode),d_aer1(n_mode),n_mix,s_mix,m_mix)
                     
-                    ! surface area in aerosol modes
-                    dummy2=pi* &
-                        ln_part_mom(2,din_r,n_mix, sig_aer1(n_mode),d_aer1(n_mode)) * &
-                        q(k,cst(cat_r)+(i-1)*3+3)/s_tot
-                    q(k,cst(cat_r)+(i-1)*3+3)=q(k,cst(cat_r)+(i-1)*3+3)- dummy2 
-                    
-                    ! mass in aerosol modes
-                    dummy3=pi/6._wp*density_core1(n_mode)* &
-                        ln_part_mom(3,din_r,n_mix, sig_aer1(n_mode),d_aer1(n_mode)) *&
-                        q(k,cst(cat_r)+(i-1)*3+4)/m_tot
-                    q(k,cst(cat_r)+(i-1)*3+4)=q(k,cst(cat_r)+(i-1)*3+4)- dummy3
-                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                call move_aerosol_larger_than_size(n_mode, &
+                    din_r,n_mix, sig_aer1(n_mode), &
+                    d_aer1(n_mode), density_core1(n_mode), &
+                    q(k,cst(cat_r)+2:cst(cat_r)+(n_mode-2)*3+2:3), & ! number in rw mode
+                    q(k,cst(cat_r)+3:cst(cat_r)+(n_mode-2)*3+3:3), & ! sa in rw mode
+                    q(k,cst(cat_r)+4:cst(cat_r)+(n_mode-2)*3+4:3), & ! mass in rw mode
+                    q(k,iai:iai+(n_mode-2)*3:3), & ! number in ice mode
+                    q(k,iai+1:iai+(n_mode-2)*3+1:3), & !sa in ice mode
+                    q(k,iai+2:iai+(n_mode-2)*3+2:3))  !mass in ice mode
 
-
-                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    ! add to aerosol particles in ice water                              !
-                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    ! number in aerosol modes
-                    ! qv, n_mode aerosol + 1
-                    q(k,iai+(i-1)*3)=q(k,iai+(i-1)*3)+dummy1 
-                    
-                    ! surface area in aerosol modes
-                    q(k,iai+(i-1)*3+1)=q(k,iai+(i-1)*3+1)+dummy2 
-                    
-                    ! mass in aerosol modes
-                    q(k,iai+(i-1)*3+2)=q(k,iai+(i-1)*3+2)+dummy3
-                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                enddo
+                pgfr(k)=pgfr(k)+massr_nucr(k)/dt
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!                    
             endif 
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             ! end ice nucleation from rain water                                         !
@@ -2812,171 +2680,43 @@
 
 
 
-
-
-
-
-
-
-		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		! deposition & sublimation onto ice                                              !
-		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!	
-		if ((t(k).le.ttr) .and. ice_flag) then
-		    if((q(k,iqi).gt.qsmall).and.(q(k,iqi+2).gt.0._wp)) then
-                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                ! chen and lamb                                                          !
-                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                ! current volume
-                vol=q(k,iqi+2)
-                call chen_and_lamb_prop((pidep(k)-pisub(k))*dt,gamma_t(k), &
-                    vol,phi, dep_density(k))
-                ! this is the new volume of the crystals
-                vol=min(max(vol,(q(k,iqi)-q(k,iqi+4))/rhoi),(q(k,iqi)-q(k,iqi+4))/10._wp)
-                q(k,iqi+2)=vol
-                q(k,iqi+1)=phi*q(k,ini)
-            endif
-            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! put aerosol from freezing rain in ice, 
+        ! should be praci (assuming piacr goes to ice anyway, so doesn't need doing)
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		if(ice_flag.and.(t(k).lt.ttr).and.(((q(k,  iqr)-pgfr(k)*dt).gt.qsmall))) then
+		    ! move aerosol from rain to ice due to praci
+			call move_aerosol_proportional( n_mode, &
+			    q(k,cst(cat_r)+2:cst(cat_r)+2+(n_mode-2)*3:3), &
+			    q(k,cst(cat_r)+3:cst(cat_r)+3+(n_mode-2)*3:3), &
+			    q(k,cst(cat_r)+4:cst(cat_r)+4+(n_mode-2)*3:3), &
+			    q(k,iai:iai+(n_mode-2)*3:3), &
+			    q(k,iai+1:iai+1+(n_mode-2)*3:3), &
+			    q(k,iai+2:iai+2+(n_mode-2)*3:3), &
+			    praci(k)*dt,q(k,  iqr)-pgfr(k)*dt ,.true.)
 		endif
-		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		! end deposition & sublimation onto ice                                          !
-		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!	
-
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        ! Update variables                                                               !
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        ! vapour mass
-        q(k,1)=q(k,1)+(pisub(k)-(pidep(k)+piprm(k)))*dt
-
-        ! ice mass and number
-        if(ice_flag) then 
-            ! ice mass
-            q(k,iqi)=q(k,iqi)+(pidep(k)-pisub(k))*dt
-            ! rime mass
-            q(k,iqi+4)=q(k,iqi+4)+(-pisub(k))*dt
-            
-            ! add the aerosol in ice into the mixed-mode aerosol
-            dummy2 = min(max((q(k,ini)-(riaci(k))*dt)/ (q(k,ini)+qsmall), 0._wp),1._wp)
-            q(k,ini)=q(k,ini)-(riaci(k))*dt
-            q(k,ini+1) = q(k,ini+1)*dummy2 ! shape factor
-            if(q(k,iqi)<qsmall) then
-                dummy2=q(k,ini)
-                q(k,ini)=0._wp
-                q(k,ini+2:ini+5)=0._wp ! all properties, except aerosol
-            
-            
-            
-                if(recycle) &
-                    q(k,cst(cat_am))=q(k,cst(cat_am))+dummy2 ! total number of the mixed-mode
-                do i=1,n_mode-1
-                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    ! add aerosol in sublimating ice water back to aerosol
-                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    if(recycle) then
-                        ! this is number in aerosol, plus number in rain 
-                        !  (scaled by fraction in composition category)
-                        ! aer_in_rain * rain_num_evap / rain_num
-                        q(k,cst(cat_am)+(i-1)*3+1)      = &
-                            q(k,cst(cat_am)+(i-1)*3+1)   + &
-                            q(k,cst(cat_i)+(i-1)*3+6)
-                    
-                        ! this is surface area going into aerosol
-                        q(k,cst(cat_am)+(i-1)*3+2)    = &
-                            q(k,cst(cat_am)+(i-1)*3+2) +&
-                            q(k,cst(cat_i)+(i-1)*3+7) 
-                        
-                        ! this is mass going into aerosol
-                        q(k,cst(cat_am)+(i-1)*3+3)    = &
-                            q(k,cst(cat_am)+(i-1)*3+3) +&
-                            q(k,cst(cat_i)+(i-1)*3+8) 
-                    endif
-                
-                    ! aerosol in ice
-                    q(k,cst(cat_i)+(i-1)*3+6)=0._wp
-                    
-                    q(k,cst(cat_i)+(i-1)*3+7)=0._wp
-                    
-                    q(k,cst(cat_i)+(i-1)*3+8)=0._wp
-                    
-                enddo
-            endif
-        endif
-        
-        
-        ! liquid mass - riming not done here
-        q(k,iqc)=q(k,iqc)-((praut(k)+pracw(k)+pifrw(k)))*dt
-       
-        ! rain number
-        q(k,cst(cat_r))=q(k,cst(cat_r))+ &
-            (rraut(k)+rrsel(k)-pgfr(k)* &
-            q(k,cst(cat_r))/(q(k,cst(cat_r)+1)+1.e-20_wp))*dt
-
-        ! rain mass
-        q(k,cst(cat_r)+1)=q(k,cst(cat_r)+1)+(praut(k)+pracw(k)+pimlt(k)-(pgfr(k)))*dt
-        ! treat rain evaporation separately - adjust
-        prevp(k)=min(prevp(k),q(k,cst(cat_r)+1)/dt) 
-    
-
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        ! rain aerosol
+        ! move cloud aerosol into rain aerosol
         ! aerosol going into rain, by coll-coal
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        q(k,cst(cat_r)+2:cen(cat_r))=q(k,cst(cat_r)+2:cen(cat_r))+ &
-           min(max(-(rcwaut(k)+rcwacr(k)+rcwsel(k))*dt / &
-            (q(k,cst(cat_c))+qsmall),0._wp),1._wp) * &
-                q(k,cst(cat_c)+2:cen(cat_c))
+        if((q(k,inc)-nin_c).gt.qsmall) then
+            call move_aerosol_proportional( n_mode, &
+                q(k,cst(cat_c)+2:cst(cat_c)+2+(n_mode-2)*3:3), &
+                q(k,cst(cat_c)+3:cst(cat_c)+3+(n_mode-2)*3:3), &
+                q(k,cst(cat_c)+4:cst(cat_c)+4+(n_mode-2)*3:3), &
+                q(k,cst(cat_r)+2:cst(cat_r)+2+(n_mode-2)*3:3), &
+                q(k,cst(cat_r)+3:cst(cat_r)+3+(n_mode-2)*3:3), &
+                q(k,cst(cat_r)+4:cst(cat_r)+4+(n_mode-2)*3:3), &
+                -(rcwaut(k)+rcwacr(k)+rcwsel(k))*dt,q(k,  inc)-nin_c, .true. )
+        endif
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-        ! liquid aerosol
-        q(k,cst(cat_c)+2:cen(cat_c))=q(k,cst(cat_c)+2:cen(cat_c))- &
-         min(max(-(rcwaut(k)+rcwacr(k)+rcwsel(k))*dt / &
-         (q(k,cst(cat_c))+qsmall),0._wp),1._wp) * &
-                q(k,cst(cat_c)+2:cen(cat_c))
-        ! liquid number
-        q(k,inc)=q(k,inc)- &
-            min(max(-(rcwaut(k)+rcwacr(k)+rcwsel(k))*dt/(q(k,inc)+qsmall),0._wp),1._wp)* &
-                                q(k,inc)
-
-        if(recycle) then
-            if(q(k,iqc) .lt. qsmall) then ! if evaporated
-                do i=1,n_mode-1
-                    ! add aerosol in cloud water back to aerosol
-                    q(k,cst(i+1))      =q(k,cst(i+1))   +q(k,cst(cat_c)+(i-1)*3+2)
-                    q(k,cst(i+1)+1)    =q(k,cst(i+1)+1) +q(k,cst(cat_c)+(i-1)*3+3)
-                    q(k,cst(i+1)+2)    =q(k,cst(i+1)+2) +q(k,cst(cat_c)+(i-1)*3+4)
-                    q(k,cst(cat_c)+(i-1)*3+2)=0._wp
-                    q(k,cst(cat_c)+(i-1)*3+3)=0._wp
-                    q(k,cst(cat_c)+(i-1)*3+4)=0._wp
-                enddo
-                q(k,inc) = 0.0_wp
-            endif
-        else
-            if(q(k,iqc) .lt. qsmall) then ! if evaporated
-                do i=1,n_mode-1
-                    q(k,cst(cat_c)+(i-1)*3+2)=0._wp
-                    q(k,cst(cat_c)+(i-1)*3+3)=0._wp
-                    q(k,cst(cat_c)+(i-1)*3+4)=0._wp
-                enddo
-                q(k,inc) = 0.0_wp
-            endif
-        endif
-
-
-        if((prevp(k) .gt. 0._wp)) then
-            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            ! add up the total number of aerosol in rain - all modes
-            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            dummy1=0._wp
-            do i=1,n_mode-1
-                dummy1=dummy1+q(k,cst(cat_r)+(i-1)*3+2)
-            enddo
-            !dummy1=max(dummy1,q(k,cst(cat_r)),1._wp)
-            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-            
+        ! evaporation of rain - similar to melting of ice
+        if(prevp(k) .gt. 0._wp) then
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             ! calculate the number conc. of rain drops evaporated
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -2984,222 +2724,279 @@
             dummy2=min(dummy2,q(k,cst(cat_r)))
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
-
-
-
             if(dummy2 .gt. qsmall) then
-
-
-
-        
                 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 ! add evaporated rain particles to mixed-mode aerosol
                 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 if(recycle) &
                     q(k,cst(cat_am))=q(k,cst(cat_am))+dummy2 ! total number of the mixed-mode
 
-                do i=1,n_mode-1
-                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    ! add aerosol in evaporating rain water back to aerosol
-                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-                    if(recycle) then
-                        ! this is number in aerosol, plus number in rain 
-                        !  (scaled by fraction in composition category)
-                        ! aer_in_rain * rain_num_evap / rain_num
-                        q(k,cst(cat_am)+(i-1)*3+1)      = &
-                            q(k,cst(cat_am)+(i-1)*3+1)   + &
-                            q(k,cst(cat_r)+(i-1)*3+2) * &
-                            min(dummy2/(q(k,cst(cat_r))+qsmall),1._wp)
-                    
-                        ! this is surface area going into aerosol
-                        q(k,cst(cat_am)+(i-1)*3+2)    = &
-                            q(k,cst(cat_am)+(i-1)*3+2) +&
-                            q(k,cst(cat_r)+(i-1)*3+3) * &
-                            min(dummy2/(q(k,cst(cat_r))+qsmall),1._wp)
-                        ! this is mass going into aerosol
-                        q(k,cst(cat_am)+(i-1)*3+3)    = &
-                            q(k,cst(cat_am)+(i-1)*3+3) +&
-                            q(k,cst(cat_r)+(i-1)*3+4) * &
-                            min(dummy2/(q(k,cst(cat_r))+qsmall),1._wp)
-                    endif                
-                    ! aerosol in rain
-                    q(k,cst(cat_r)+(i-1)*3+2)=q(k,cst(cat_r)+(i-1)*3+2)* &
-                        (1._wp - min(dummy2/(q(k,cst(cat_r))+qsmall),1._wp))
-                    
-                    q(k,cst(cat_r)+(i-1)*3+3)=q(k,cst(cat_r)+(i-1)*3+3)* &
-                        (1._wp - min(dummy2/(q(k,cst(cat_r))+qsmall),1._wp))
-                    
-                    q(k,cst(cat_r)+(i-1)*3+4)=q(k,cst(cat_r)+(i-1)*3+4)* &
-                        (1._wp - min(dummy2/(q(k,cst(cat_r))+qsmall),1._wp))
-                    
-                enddo
-                ! rain number
-                q(k,cst(cat_r)) = q(k,cst(cat_r)) * &
-                    (1._wp - min(dummy2/(q(k,cst(cat_r))+qsmall),1._wp ))
+                call move_aerosol_proportional( n_mode, &
+                    q(k,cst(cat_r)+2:cst(cat_r)+2+(n_mode-2)*3:3), &
+                    q(k,cst(cat_r)+3:cst(cat_r)+3+(n_mode-2)*3:3), &
+                    q(k,cst(cat_r)+4:cst(cat_r)+4+(n_mode-2)*3:3), &
+                    q(k,cst(cat_am)+1:cst(cat_am)+1+(n_mode-2)*3:3), &
+                    q(k,cst(cat_am)+2:cst(cat_am)+2+(n_mode-2)*3:3), &
+                    q(k,cst(cat_am)+3:cst(cat_am)+3+(n_mode-2)*3:3), &
+                    prevp(k)*dt,q(k,  iqr)-pgfr(k)*dt-praci(k)*dt , recycle )
                 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             endif
+            ! rain number sink
+            rrevp(k)=dummy2/dt
         endif
+
+
+
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! Update variables                                                               !
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! vapour mass
+        q(k,1)=q(k,1)+(pisub(k)-pidep(k))*dt
         
+        ! liquid mass - riming not done here
+        dummy3=q(k,iqc)
+        q(k,iqc)=q(k,iqc)-(praut(k)+pracw(k)+pifrw(k))*dt
+       
+        ! rain number - rraut, rrsel are negative
+        q(k,cst(cat_r))=q(k,cst(cat_r))+(rraut(k)+rrsel(k)-pgfr(k)* &
+            q(k,cst(cat_r))/(q(k,cst(cat_r)+1)+qsmall))*dt
 
-    enddo
-    
-    
-    
+        ! rain mass
+        q(k,cst(cat_r)+1)=q(k,cst(cat_r)+1)+(praut(k)+pracw(k)-(pgfr(k)))*dt
+        ! treat rain evaporation separately - adjust
+        prevp(k)=min(prevp(k),q(k,cst(cat_r)+1)/dt) 
 
-    		
+        ! liquid number
+        dummy4=q(k,inc)
+        q(k,inc)=q(k,inc)- &
+            min(max(-(rcwaut(k)+rcwacr(k)+rcwsel(k))*dt/(q(k,inc)+qsmall),0._wp),1._wp)* &
+                                q(k,inc)
+
+
+        if(ice_flag) then
+            ! rime mass divided by mass
+            dummy1=q(k,iqi+4)/(q(k,iqi)+qsmall)
+
+            ! ****ALTERING Q-VARIABLES / PROPERTIES****
+            ! mode-1 SIP         
+            ! increase ice crystal number
+            q(k  ,ini)=q(k  ,ini)+nfrag_m1c(k)
+            ! increase ice crystal shape factor
+            q(k  ,iqi+1)=q(k  ,iqi+1)+nfrag_m1c(k)
+            ! increase ice crystal monomers
+            q(k  ,iqi+3)=q(k  ,iqi+3)+nfrag_m1c(k)
+
+            ! mode-2 SIP        
+            ! increase ice crystal number
+            q(k  ,ini)=q(k  ,ini)+nfrag_m2(k)
+            ! increase ice crystal shape factor
+            q(k  ,iqi+1)=q(k  ,iqi+1)+nfrag_m2(k)
+            ! increase ice crystal monomers
+            q(k  ,iqi+3)=q(k  ,iqi+3)+nfrag_m2(k)
         
-    
-    
-        
-        
+            ! ice-ice collisions
+            ! increase ice crystal number
+            q(k  ,ini)=q(k  ,ini)+nfrag_ii(k)
+            ! increase ice crystal shape factor
+            q(k  ,iqi+1)=q(k  ,iqi+1)+nfrag_ii(k)
+            ! increase ice crystal monomers
+            q(k  ,iqi+3)=q(k  ,iqi+3)+nfrag_ii(k)
+            
+            ! ****ALTERING Q-VARIABLES / PROPERTIES****
+            ! increase ice crystal number
+            q(k  ,ini)=q(k  ,ini)+nin_c+nfrag_nucc(k)
+            ! increase ice crystal mass - added divided by number of cloud, 
+                            ! multiplied by mass of cloud
+            q(k  ,iqi)=q(k  ,iqi)+massc_nucc(k)
+            ! increase ice crystal shape factor
+            q(k  ,iqi+1)=q(k  ,iqi+1)+nin_c+nfrag_nucc(k)
+            ! increase ice crystal volume factor
+            q(k  ,iqi+2)=q(k  ,iqi+2)+massc_nucc(k)/rhoi
+            ! increase ice crystal monomers
+            q(k  ,iqi+3)=q(k  ,iqi+3)+nin_c+nfrag_nucc(k)                
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            
+            ! deplete cloudnc
+            ! ****ALTERING Q-VARIABLES / PROPERTIES****
+            q(k,  inc)=q(k,inc)-nin_c
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+
+            ! ****ALTERING Q-VARIABLES / PROPERTIES****
+            ! increase in ice crystal number
+            q(k  ,ini)=q(k  ,ini)+nin_r+nfrag_nucr(k)
+            ! increase in ice crystal mass
+            q(k  ,iqi)=q(k  ,iqi)+massr_nucr(k)
+            
+            ! increase ice crystal shape factor
+            q(k  ,iqi+1)=q(k  ,iqi+1)+nin_r+nfrag_nucr(k)
+            ! increase ice crystal volume factor
+            q(k  ,iqi+2)=q(k  ,iqi+2)+massr_nucr(k)/rhoi
+            ! increase ice crystal monomers
+            q(k  ,iqi+3)=q(k  ,iqi+3)+nin_r+nfrag_nucr(k)
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! deplete rain
+            ! ****ALTERING Q-VARIABLES / PROPERTIES****
+            q(k,  inr)=q(k,inr)-nin_r
+            
+            ! ****ALTERING Q-VARIABLES / PROPERTIES****
+			! iacr is a source of ice mass only - not number
+            ! increase ice crystal mass
+            q(k  ,iqi)  =q(k  ,iqi)+praci(k)*dt
+            ! increase rime mass of ice
+            q(k,  iqi+4)=q(k  ,iqi+4)+praci(k)*dt
+            ! iacr is a sink of rain mass and number
+            q(k,  iqr)  =q(k, iqr)-praci(k)*dt
+            q(k,  inr)  =q(k, inr)-rraci(k)*dt
 
 
-    
 
-    ! melting ice!
-    do k=1,kp
-        if((pimlt(k) .gt. 0._wp)) then
+
+            ! rime mass - could do this in proportion i.e. rm/q*dm
+            ! NOTE, iqi has been changed prior
+            q(k,iqi+4)=q(k,iqi+4)+dummy1*(pidep(k)-pisub(k))*dt
+            ! ice mass - total
+            q(k,iqi)=q(k,iqi)+(pidep(k)-pisub(k))*dt
+
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            ! add up the total number of aerosol in ice - all modes
+            ! do the riming here                                                         !
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            dummy1=0._wp
-            do i=1,n_mode-1
-                dummy1=dummy1+q(k,iai+(i-1)*3)
-            enddo
+            if(rm_flag.and.(q(k,iqc).ge.qsmall)) then
+                !dummy3 is initial cloud water mass, dummy4 is initial nc
+
+                ! riming
+                q(k,iqi)=q(k,iqi)+piacw(k)*dt
+                q(k,iqi+4)=q(k,iqi+4)+piacw(k)*dt
+                
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                ! add add aerosol in cw to ice during riming
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                call move_aerosol_proportional( n_mode, &
+                    q(k,cst(cat_c)+2:cst(cat_c)+2+(n_mode-2)*3:3), &
+                    q(k,cst(cat_c)+3:cst(cat_c)+3+(n_mode-2)*3:3), &
+                    q(k,cst(cat_c)+4:cst(cat_c)+4+(n_mode-2)*3:3), &
+                    q(k,iai:iai+(n_mode-2)*3:3), &
+                    q(k,iai+1:iai+1+(n_mode-2)*3:3), &
+                    q(k,iai+2:iai+2+(n_mode-2)*3:3), &
+                    piacw(k)*dt,q(k,iqc) ,.true.)
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+                
+                q(k,inc)=q(k,inc)-piacw(k)*dummy4/(dummy3+qsmall)*dt
+                q(k,iqc)=q(k,iqc)-piacw(k)*dt
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                ! h-m process                                                            !
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                if((t(k).le.(ttr-2.0_wp)).or.(t(k).ge.(ttr-9.0_wp))) then
+
+                    if(hm_flag) then
+                        rihal(k)=max(hm_rate*piacw(k)*hm_func(t(k)),0._wp)
+                        dummy3=rihal(k)*dt
+                        ! increase ice number
+                        q(k,ini) = q(k,ini) + dummy3
+                        ! increase phi
+                        q(k,iqi+1) = q(k,iqi+1) + dummy3
+                        ! increase monomers
+                        q(k,iqi+3) = q(k,iqi+3) + dummy3
+                    endif
+                endif
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            endif
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
 
             
-            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            ! calculate the number conc. of ice melted
-            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            dummy2=pimlt(k)*(q(k,cst(cat_i))/(qsmall+q(k,cst(cat_i)+1)))*dt
-            dummy2=min(dummy2,q(k,cst(cat_i)))
-            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-
-
-
-            if(dummy2 .gt. qsmall) then
-
-
-
-        
-
-                do i=1,n_mode-1
-                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    ! add aerosol in melting ice water back to aerosol
-                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    if(recycle) then
-                        ! this is number in aerosol, plus number in ice 
-                        !  (scaled by fraction in composition category)
-                        ! aer_in_ice * ice_num_evap / ice_num
-                        q(k,cst(cat_r)+(i-1)*3+2)      = &
-                            q(k,cst(cat_r)+(i-1)*3+2)   + &
-                            q(k,iai+(i-1)*3) * &
-                            min(dummy2/(q(k,cst(cat_i))+qsmall),1._wp)
+            ! add the aerosol in ice into the mixed-mode aerosol
+            ! fraction that number reduces by
+            q(k,ini)=q(k,ini)-(riaci(k))*dt
+            if(q(k,iqi)<qsmall) then
+                dummy2=q(k,ini)
+                q(k,ini)=0._wp
+                q(k,ini+2:ini+5)=0._wp ! all properties, except aerosol
+                
+            
+                if(recycle) &
+                    q(k,cst(cat_am))=q(k,cst(cat_am))+dummy2 ! total number of the mixed-mode
                     
-                        ! this is surface area going into rain aerosol
-                        q(k,cst(cat_r)+(i-1)*3+3)    = &
-                            q(k,cst(cat_r)+(i-1)*3+3) +&
-                            q(k,iai+(i-1)*3+1) * &
-                            min(dummy2/(q(k,cst(cat_i))+qsmall),1._wp)
-                        ! this is mass going into rain aerosol
-                        q(k,cst(cat_r)+(i-1)*3+4)    = &
-                            q(k,cst(cat_r)+(i-1)*3+4) +&
-                            q(k,iai+(i-1)*3+2) * &
-                            min(dummy2/(q(k,cst(cat_i))+qsmall),1._wp)
-                    endif                
-                    ! aerosol in ice
-    !                 q(k,iai+(i-1)*3)=q(k,iai+(i-1)*3)* &
-    !                     (1._wp - min(dummy2/(q(k,cst(cat_i))+qsmall),1._wp))
-    !                     
-    !                 q(k,iai+(i-1)*3+1)=q(k,iai+(i-1)*3+1)* &
-    !                     (1._wp - min(dummy2/(q(k,cst(cat_i))+qsmall),1._wp))
-    !                     
-    !                 q(k,iai+(i-1)*3+2)=q(k,iai+(i-1)*3+2)* &
-    !                     (1._wp - min(dummy2/(q(k,cst(cat_i))+qsmall),1._wp))
                     
-                enddo
-                ! add the number of ice and mass to the rain
-                q(k,cst(cat_r))=q(k,cst(cat_r))+dummy2
-                ! mass already added
-    !             q(k,cst(cat_r)+1)=q(k,cst(cat_r)+1)+pimlt(k)*dt
-                ! ice properties
-                q(k,cst(cat_i):cen(cat_i)) = q(k,cst(cat_i):cen(cat_i)) * &
-                    (1._wp - min(dummy2/(q(k,cst(cat_i))+qsmall),1._wp ))
                 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                if(t(k) > ttr) q(k,cst(cat_i):cen(cat_i))=0._wp
+                ! move all aerosol in ice to the mixed-mode
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                call move_aerosol_proportional( n_mode, &
+                    q(k,iai:iai+(n_mode-2)*3:3), & ! number in ice mode
+                    q(k,iai+1:iai+(n_mode-2)*3+1:3), & !sa in ice mode
+                    q(k,iai+2:iai+(n_mode-2)*3+2:3), & ! mass in ice mode
+                    q(k,cst(cat_am)+2:cst(cat_am)+2+(n_mode-2)*3:3), &
+                    q(k,cst(cat_am)+3:cst(cat_am)+3+(n_mode-2)*3:3), &
+                    q(k,cst(cat_am)+4:cst(cat_am)+4+(n_mode-2)*3:3), &
+                    1._wp,1._wp ,recycle)
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    
             endif
+            
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! deposition & sublimation onto ice                                          !
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!	
+		    if((q(k,iqi).gt.qsmall).and.(q(k,iqi+2).gt.0._wp)) then
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                ! chen and lamb                                                          !
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                ! current volume
+                vol=q(k,iqi+2)
+                ! dummy1 is the rime mass fraction
+                ! dm of the crystal
+                call chen_and_lamb_prop((1._wp-dummy1)*(pidep(k)-pisub(k))*dt,gamma_t(k), &
+                    vol,phi, dep_density(k))
+                ! this is the new volume of the crystals
+                ! NB, IQI has changed prior
+                vol=min(max(vol,(q(k,iqi)-q(k,iqi+4))/rhoi),(q(k,iqi)-q(k,iqi+4))/10._wp)
+                q(k,iqi+2)=vol
+                q(k,iqi+1)=phi*q(k,ini+4)
+            endif
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! end deposition & sublimation onto ice                                      !
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!	
+            
+        endif
+
+
+        if(q(k,iqc) .lt. qsmall) then ! if evaporated
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! move all aerosol in cloud to the aerosol
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            call move_aerosol_proportional( n_mode, &
+                q(k,cst(cat_c)+2:cst(cat_c)+2+(n_mode-2)*3:3), &
+                q(k,cst(cat_c)+3:cst(cat_c)+3+(n_mode-2)*3:3), &
+                q(k,cst(cat_c)+4:cst(cat_c)+4+(n_mode-2)*3:3), &
+                q(k,cst(2):cst(n_mode):3), &
+                q(k,cst(2)+1:cst(n_mode)+1:3), &
+                q(k,cst(2)+2:cst(n_mode)+2:3), &
+                1._wp,1._wp ,recycle)
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            q(k,inc) = 0.0_wp
         endif
         
+
+
+        
+
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        ! trial and error shows that riming can sometimes cause problems if it warms above 
-        ! ttr. So adjust temperature in two places
+        ! adjust temperature 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         t(k)=t(k)-lv/cp*prevp(k)*dt+lf/cp*pifrw(k)*dt+lf/cp*pgfr(k)*dt+ &
-!             lf/cp*praci(k)*dt + lf/cp*piacr(k)*dt + &
-            ls/cp*(pidep(k)-pisub(k))*dt-lf/cp*(pimlt(k))*dt
+            lf/cp*praci(k)*dt + &
+            ls/cp*(pidep(k)-pisub(k))*dt + & !-lf/cp*(pimlt(k))*dt + &
+            lf/cp*(piacw(k))*dt
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        ! do the riming here                                                             !
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        if((ice_flag.and.rm_flag).and.(q(k,iqc).ge.qsmall).or.(t(k).le.ttr)) then
-
-            dummy1=q(k,iqc)
-            
-            ! limit riming so 0.1 times liquid water or to a temperature 
-            ! that will not raise above the melting point
-            piacw(k)=max(min(piacw(k),dummy1/dt*0.1_wp,(ttr-t(k))*cp/lf)/dt*0.5_wp,0._wp)
-            ! riming
-            q(k,iqi)=q(k,iqi)+piacw(k)*dt
-            q(k,iqi+4)=q(k,iqi+4)+piacw(k)*dt
-
-            ! and the aerosol
-            ! increase ice aerosol
-            q(k,iai:cen(cat_i))=q(k,iai:cen(cat_i))+ &
-                q(k,cst(cat_c)+2:cen(cat_c))*piacw(k)*dt/dummy1
-            ! reduce cloud props
-            q(k,cst(cat_c):cen(cat_c))=q(k,cst(cat_c):cen(cat_c))* &
-                max(1._wp- piacw(k)*dt/dummy1,0._wp)
-                
-                
-            
-            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            ! h-m process                                                                !
-            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            if((t(k).le.(ttr-2.0_wp)).or.(t(k).ge.(ttr-9.0_wp))) then
-
-                if(hm_flag) then
-                    rihal(k)=max(hm_rate*piacw(k)*hm_func(t(k)),0._wp)
-                    dummy1=rihal(k)*dt
-                    ! increase ice number
-                    q(k,ini) = q(k,ini) + dummy1
-                    ! increase phi
-                    q(k,iqi+1) = q(k,iqi+1) + dummy1
-                    ! increase monomers
-                    q(k,iqi+3) = q(k,iqi+3) + dummy1
-                endif
-            endif
-            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        endif
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        ! adjust temperature due to riming                                               !
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        t(k)=t(k)+lf/cp*(piacw(k))*dt
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         q(k,cst(cat_r)+1)=q(k,cst(cat_r)+1)-prevp(k)*dt
     
-        q(k,1)=q(k,1)+(prevp(k))*dt
-
+        q(k,cst(cat_r))=q(k,cst(cat_r))-rrevp(k)*dt
+    
+        q(k,1)=q(k,1)+prevp(k)*dt
+        
         q(k,:)=max(q(k,:),0._wp)	
 
 
@@ -3216,7 +3013,6 @@
 
 
     
-
 
     rho=1._wp ! fudge for advection conservation
  	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -3278,6 +3074,49 @@
             enddo
 #endif	
         endif
+        
+        do k=-o_halo+1,kp+o_halo   
+            ! melting ice!
+            if((t(k)+lf/cp*q(k,iqi) ).gt.ttr) then
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                ! calculate the number conc. of ice melted
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                pimlt(k)=q(k,iqi)/dt
+                dummy2=pimlt(k)*(q(k,ini)/(qsmall+q(k,iqi)))*dt
+                dummy2=min(dummy2,q(k,ini))
+    !             pimlt(k)=dummy2/dt
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+                if(dummy2 .gt. qsmall) then
+                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    ! move aerosol in melting ice to the aerosol in rain
+                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    call move_aerosol_proportional( n_mode, &
+                        q(k,iai:iai+(n_mode-2)*3:3), & ! number in ice mode
+                        q(k,iai+1:iai+(n_mode-2)*3+1:3), & !sa in ice mode
+                        q(k,iai+2:iai+(n_mode-2)*3+2:3), & ! mass in ice mode
+                        q(k,cst(cat_r)+2:cst(cat_r)+2+(n_mode-2)*3:3), &
+                        q(k,cst(cat_r)+3:cst(cat_r)+3+(n_mode-2)*3:3), &
+                        q(k,cst(cat_r)+4:cst(cat_r)+4+(n_mode-2)*3:3), &
+                        dummy2,q(k,ini) ,recycle)
+                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    ! ice properties
+                    q(k,cst(cat_i):cst(cat_i)+5) = q(k,cst(cat_i):cst(cat_i)+5) * &
+                        (1._wp - min(dummy2/(q(k,ini)+qsmall),1._wp ))
+            
+                    ! add the number of ice and mass to the rain
+                    q(k,inr)=q(k,inr)+dummy2
+
+                    ! mass already added
+                    q(k,iqr)=q(k,iqr)+pimlt(k)*dt
+                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !                 if(t(k) > ttr) q(k,cst(cat_i):cen(cat_i))=0._wp
+                endif
+                t(k)=t(k)-lf/cp*pimlt(k)*dt   
+                if (theta_flag) th(k)=t(k)*(1.e5_wp/p(k))**(ra/cp)-theta(k)
+            endif    
+             
+        enddo
     endif
  	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
@@ -3541,39 +3380,46 @@
 	!>@brief calculate the number of active INPs and the threshold diameter for 
 	!> activation
 	!>@param[in] flag for type of nucleation 1=demott, 2=stochastic....
-	!>@param[in] n_aer,sig_aer,d_aer,T,icen, j_stochastic, dt
+	!>@param[in] n_aer,sig_aer,d_aer,T,icen, nc, qc, j_stochastic, dt
 	!>@param[inout] nin,din
     subroutine ice_nucleation_aerosol(nin,din, &
                 n_aer, &    ! number
                 sig_aer, &  ! sigma 
-                d_aer, t ,icen, &
+                d_aer, t ,icen, nc, qc, &
                 j_stochastic, dt,ice_nuc_flag)     ! d
     use numerics_type
     implicit none
     integer(i4b), intent(in) :: ice_nuc_flag
     real(wp), intent(inout) :: nin, din
-    real(wp), intent(in) :: n_aer,sig_aer,d_aer, t,icen, &
+    real(wp), intent(in) :: n_aer,sig_aer,d_aer, t,icen, nc, qc, &
                         j_stochastic,dt
 
-    real(wp) :: naer05, x, arg
+    real(wp) :: naer05, x, arg, dq
 
-    if(ice_nuc_flag.eq.1) then
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        ! DeMott 2010 nucleation                         !
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        naer05=ln_part_mom(0,0.5e-6_wp,n_aer,sig_aer,d_aer)
-        ! source function
-        nin=demott_2010(t,naer05)
-        ! limit nucleation
-        nin=max(nin-icen,0._wp)
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    elseif(ice_nuc_flag.eq.2) then
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        ! basic stochastic nucleation                    !
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        nin=j_stochastic*n_aer*dt
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    endif    
+    if(t>= t_hom) then  
+        if(ice_nuc_flag.eq.1) then
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! DeMott 2010 nucleation                         !
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            naer05=ln_part_mom(0,0.5e-6_wp,n_aer,sig_aer,d_aer)
+            ! source function
+            nin=demott_2010(t,naer05)
+            ! limit nucleation
+            nin=max(nin-icen,0._wp)
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        elseif(ice_nuc_flag.eq.2) then
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! basic stochastic nucleation                    !
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            nin=j_stochastic*n_aer*dt
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        endif  
+    else
+        ! homogeneous nucleation
+        dq = min(max((t_hom-t)*cp/lf*dt, 0._wp), qc)
+        nin = dq/qc*nc
+        
+    endif  
     
     
     
@@ -3592,7 +3438,7 @@
     ! but x is equal to log(d/dm)/(sig_aer*sqrt(2))
     din=exp(x*sig_aer*sqrt(2._wp)+log(d_aer))
     
-    if((din<0.5e-6_wp) .and. (ice_nuc_flag.eq.1)) din=0.5e-6_wp
+    if((din<0.5e-6_wp) .and. ((t>t_hom).and.(ice_nuc_flag.eq.1))) din=0.5e-6_wp
     
     end subroutine ice_nucleation_aerosol
 	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -3628,6 +3474,9 @@
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! solving equations 43 and 43 over dV
+        ! i.e. d (ln c /a) = (gam-1)/(gam+2) *d ln v
+        !      1/phi * d phi = (gam-1)/(gam+2) / v * dv
+        !      ln (phi2/phi1) = (gam-1)/(gam+2) * ln(v2/v1)
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         rgamma_tp2=1._wp/(gamma_t+2._wp)
         ln_vn_vo=log(v/v_old)
@@ -3714,6 +3563,170 @@
         
     end function chen_and_lamb_cap_fac
 	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! riming integral over size distribution                                       !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	!>@author
+	!>Paul J. Connolly, The University of Manchester
+	!>@brief
+	!>calculates integral over distribution for riming
+    function integral_rime_hw(x)
+        use numerics_type, only : wp, i4b
+        implicit none
+		real(wp), dimension(:), intent(in) :: x
+		real(wp), dimension(size(x)) :: integral_rime_hw
+		
+		real(wp), dimension(size(x)) :: diami, vi
+		
+		diami=(x/ci_new)**(1.0_wp/di)
+        vi=pre_hw_new*(diami**-1)*((1._wp+a_hw_new*diami**(0.5_wp*di))**0.5_wp-1._wp)**2
+        
+        integral_rime_hw=0.25_wp*pi*diami**(2+alpha_i)*n0i*exp(-lambda0i*diami)*vi* &
+            (diami**(1.0_wp-di)) / (ci_new*di) 
+            
+            
+    end function integral_rime_hw
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! This evaluates the integrand                                                       !
+    ! for collisions - number weighted                                                   !
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    function dintegral_coll_num_hw(x,y)
+        use numerics_type, only : wp, i4b
+        implicit none
+        real(wp), intent(in) :: x
+        real(wp), dimension(:), intent(in) :: y
+        real(wp), dimension(size(y)) :: dintegral_coll_num_hw
+        real(wp) :: diamr, mr, vr, n,nt,nb,mb,mt
+        real(wp), dimension(size(y)) :: mi, diami, delv, vi
+        integer(i4b) :: i
+
+
+        mr=x
+        mi=y
+        diamr=(mr/cr)**(1.0_wp/dr)
+        diami=(mi/ci_new)**(1.0_wp/di)
+        ! fall-speeds
+        vr=a_r*diamr**b_r
+!         vi=a_i*diami**b_i
+        vi=pre_hw_new*(diami**-1)*((1._wp+a_hw_new*diami**(0.5_wp*di))**0.5_wp-1._wp)**2
+        delv=abs(vr-vi)
+        !delv=max((vx+vy)/8.0,abs(vx-vy))
+        ! last bit is to convert to integral over m
+        dintegral_coll_num_hw=eri*pi/4.0_wp*(diamr+diami)**2* &
+            delv*n0r*diamr**alpha_r* &
+            exp(-lambda0r*diamr)*n0i*diami**alpha_i*exp(-lambda0i*diami)* &
+            (diamr**(1.0_wp-dr)) / (cr*dr)*(diami**(1.0_wp-di)) / (ci_new*di)
+        
+    end function dintegral_coll_num_hw
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! This evaluates the integrand                                                       !
+    ! for collisions - number weighted                                                   !
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    function dintegral_coll_ice_num_hw(x,y)
+        use numerics_type, only : wp, i4b
+        implicit none
+        real(wp), intent(in) :: x
+        real(wp), dimension(:), intent(in) :: y
+        real(wp), dimension(size(y)) :: dintegral_coll_ice_num_hw
+        real(wp) :: diamr, mr, vr, n,nt,nb,mb,mt
+        real(wp), dimension(size(y)) :: mi, diami, delv, vi
+        integer(i4b) :: i
+
+
+        mr=x
+        mi=y
+        diami=(mi/ci_new)**(1.0_wp/di)
+        diamr=(mr/ci_new)**(1.0_wp/di)
+        ! fall-speeds
+        vr=pre_hw_new*(diamr**-1)*((1._wp+a_hw_new*diamr**(0.5_wp*di))**0.5_wp-1._wp)**2
+        vi=pre_hw_new*(diami**-1)*((1._wp+a_hw_new*diami**(0.5_wp*di))**0.5_wp-1._wp)**2
+        delv=abs(vr-vi)
+        !delv=max((vx+vy)/8.0,abs(vx-vy))
+        ! last bit is to convert to integral over m
+        dintegral_coll_ice_num_hw=pi/4.0_wp*(diamr+diami)**2* &
+            delv*n0i*diamr**alpha_i* &
+            exp(-lambda0i*diamr)*n0i*diami**alpha_i*exp(-lambda0i*diami)* &
+            (diamr**(1.0_wp-di)) / (ci_new*di)*(diami**(1.0_wp-di)) / (ci_new*di)
+        
+    end function dintegral_coll_ice_num_hw
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! This evaluates the integrand                                                       !
+    ! for collisions - mass weighted praci                                               !
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    function dintegral_coll_mass1_hw(x,y)
+        use numerics_type, only : wp, i4b
+        implicit none
+        real(wp), intent(in) :: x
+        real(wp), dimension(:), intent(in) :: y
+        real(wp), dimension(size(y)) :: dintegral_coll_mass1_hw
+        real(wp) :: diamr, mr, vr, n,nt,nb,mb,mt
+        real(wp), dimension(size(y)) :: mi, diami, delv, vi
+        integer(i4b) :: i
+
+
+        mr=x
+        mi=y
+        diamr=(mr/cr)**(1.0_wp/dr)
+        diami=(mi/ci_new)**(1.0_wp/di)
+        ! fall-speeds
+        vr=a_r*diamr**b_r
+!         vi=a_i*diami**b_i
+        vi=pre_hw_new*(diami**-1)*((1._wp+a_hw_new*diami**(0.5_wp*di))**0.5_wp-1._wp)**2
+        delv=abs(vr-vi)
+        !delv=max((vx+vy)/8.0,abs(vx-vy))
+        ! last bit is to convert to integral over m
+        dintegral_coll_mass1_hw=ci_new*diami**di*eri*pi/4.0_wp*(diamr+diami)**2* &
+            delv*n0r*diamr**alpha_r* &
+            exp(-lambda0r*diamr)*n0i*diami**alpha_i*exp(-lambda0i*diami)* &
+            (diamr**(1.0_wp-dr)) / (cr*dr)*(diami**(1.0_wp-di)) / (ci_new*di)
+        
+    end function dintegral_coll_mass1_hw
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! This evaluates the integrand                                                       !
+    ! for collisions - mass weighted piacr                                               !
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    function dintegral_coll_mass2_hw(x,y)
+        use numerics_type, only : wp, i4b
+        implicit none
+        real(wp), intent(in) :: x
+        real(wp), dimension(:), intent(in) :: y
+        real(wp), dimension(size(y)) :: dintegral_coll_mass2_hw
+        real(wp) :: diamr, mr, vr, n,nt,nb,mb,mt
+        real(wp), dimension(size(y)) :: mi, diami, delv, vi
+        integer(i4b) :: i
+
+
+        mr=x
+        mi=y
+        diamr=(mr/cr)**(1.0_wp/dr)
+        diami=(mi/ci_new)**(1.0_wp/di)
+        ! fall-speeds
+        vr=a_r*diamr**b_r
+!         vi=a_i*diami**b_i
+        vi=pre_hw_new*(diami**-1)*((1._wp+a_hw_new*diami**(0.5_wp*di))**0.5_wp-1._wp)**2
+        delv=abs(vr-vi)
+        !delv=max((vx+vy)/8.0,abs(vx-vy))
+        ! last bit is to convert to integral over m
+        dintegral_coll_mass2_hw=cr*diamr**dr*eri*pi/4.0_wp*(diamr+diami)**2* &
+            delv*n0r*diamr**alpha_r* &
+            exp(-lambda0r*diamr)*n0i*diami**alpha_i*exp(-lambda0i*diami)* &
+            (diamr**(1.0_wp-dr)) / (cr*dr)*(diami**(1.0_wp-di)) / (ci_new*di)
+        
+    end function dintegral_coll_mass2_hw
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
+
+
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! mode 1 fragmentation                                                         !
@@ -3980,6 +3993,23 @@
     
     end function dintegral_mode2_hw
 	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    function limit1_coll(x)
+        use numerics_type, only : wp
+        implicit none
+        real(wp), intent(in) :: x
+        real(wp) :: limit1_coll
+        limit1_coll=mrthresh
+    end function limit1_coll
+!
+    function limit2_coll(x)
+        use numerics_type, only : wp
+        implicit none
+        real(wp), intent(in) :: x
+        real(wp) :: limit2_coll
+        limit2_coll=mrupper
+    end function limit2_coll
+
 
     function limit1_mode1(x)
         use numerics_type, only : wp
@@ -4256,14 +4286,14 @@
                     zeta=0.001_wp
             
                 endif
-                ! CKE
-                k0(i) = 0.5_wp*(mr*mi(i)/(mr+mi(i)))*(vr-vi(i))**2
-                ! finally apply equation 13
-                nfrag(i) = min(alpha*A*(1._wp-exp(-(C*K0(i)/(alpha*A))**gamma )), nmax)
-
             else
-                nfrag(i)= 0._wp
+                alpha=0._wp
+                nmax=0._wp            
             endif
+            ! CKE
+            k0(i) = 0.5_wp*(mr*mi(i)/(mr+mi(i)))*(vr-vi(i))**2
+            ! finally apply equation 13
+            nfrag(i) = min(alpha*A*(1._wp-exp(-(C*K0(i)/(alpha*A))**gamma )), nmax)
             !---------------------------------------------------------------------------------
         enddo
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -4330,6 +4360,45 @@
     
     end function heymsfield_and_westbrook_fall_parameters2
 	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! calculate the collisions between ice particles                                     !
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	!>@author
+	!>Paul J. Connolly, The University of Manchester, 2023
+	!>@brief calculates the collisions between ice particles
+	!>@param[in] n_i, rho, lam_i, qi,a_hw1,pre_hw,rime_m,vol_xtal
+	!>@param[inout] riaci
+    subroutine collisions_between_ice_particles(riaci, &
+                n_i, rho, lam_i, &
+                qi,vol_xtal,rime_m,a_hw1,pre_hw)
+        implicit none
+        real(wp), intent(in) :: n_i, rho, lam_i, &
+            qi,a_hw1,pre_hw,rime_m,vol_xtal
+        real(wp), intent(inout) :: riaci
+                 
+                
+        ! actual integrals
+        riaci=0._wp
+        ci_new=pi/6._wp*min(910._wp, &
+            qi/(vol_xtal+rime_m/500._wp))
+        lambda0i=lam_i
+        mrthresh=ci_new*1.e-6_wp**di
+        mrupper=ci_new*(pthreshi/lambda0i)**di
+        ! only call integral if mrupper gt mrthresh
+        if((mrupper.gt.mrthresh).and.(qi.gt.qsmall)) then
+            n0i=n_i
+
+            a_hw_new=a_hw1
+            pre_hw_new=pre_hw
+            call quad2d_qgaus(dintegral_coll_ice_num_hw, &
+                limit1_coll,limit2_coll,mrthresh,mrupper,riaci)
+         endif
+                
+			
+    end subroutine collisions_between_ice_particles
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
     
     
 	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -4341,9 +4410,12 @@
 	!>@param[in] nr,ni,rho, vqi, vqr, vni,vnr,lamr, lami
 	!>@param[inout] praci, rraci, piacr, riacr
     subroutine collisions_between_precipitating_particles(praci,rraci,piacr, &
-                riacr, n_r, n_i, rho, vqr, vqi,vnr, vni, lam_r, lam_i)
+                riacr, n_r, n_i, rho, vqr, vqi,vnr, vni, lam_r, lam_i, &
+                qi,vol_xtal,rime_m,qr,a_hw1,pre_hw,heyms_west)
         implicit none
-        real(wp), intent(in) :: n_r, n_i, rho,vqr, vqi, vnr,vni, lam_r, lam_i
+        real(wp), intent(in) :: n_r, n_i, rho,vqr, vqi, vnr,vni, lam_r, lam_i, &
+            qr,qi,a_hw1,pre_hw,rime_m,vol_xtal
+        logical, intent(in) :: heyms_west
         real(wp), intent(inout) :: praci, rraci, piacr, riacr
         
         ! rain mass collected by ice
@@ -4356,9 +4428,9 @@
         ! rain number collected by ice
         rraci=max(n_i*n_r*pi/(4._wp*rho)*eri*max((vnr+vni)/8._wp,abs(vnr-vni)) * &
                 ( &
-                num_raci1/(lam_i**(1._wp+alpha_i) *lam_r**(3._wp+alpha_r)) + &
-                num_raci2/(lam_i**(2._wp+alpha_i) *lam_r**(2._wp+alpha_r)) + &
-                num_raci3/(lam_i**(3._wp+alpha_i) *lam_r**(1._wp+alpha_r))  &
+                num_raci1/(lam_r**(1._wp+alpha_r) *lam_i**(3._wp+alpha_i)) + &
+                num_raci2/(lam_r**(2._wp+alpha_r) *lam_i**(2._wp+alpha_i)) + &
+                num_raci3/(lam_r**(3._wp+alpha_r) *lam_i**(1._wp+alpha_i))  &
                 )    , 0._wp)    
 
         ! ice mass collected by rain
@@ -4371,12 +4443,51 @@
         ! ice number collected by rain
         riacr=max(n_i*n_r*pi/(4._wp*rho)*eri*max((vnr+vni)/8._wp,abs(vnr-vni)) * &
                 ( &
-                num_iacr1/(lam_r**(1._wp+alpha_r) *lam_i**(3._wp+alpha_i)) + &
-                num_iacr2/(lam_r**(2._wp+alpha_r) *lam_i**(2._wp+alpha_i)) + &
-                num_iacr3/(lam_r**(3._wp+alpha_r) *lam_i**(1._wp+alpha_i))  &
+                num_iacr1/(lam_i**(1._wp+alpha_i) *lam_r**(3._wp+alpha_r)) + &
+                num_iacr2/(lam_i**(2._wp+alpha_i) *lam_r**(2._wp+alpha_r)) + &
+                num_iacr3/(lam_i**(3._wp+alpha_i) *lam_r**(1._wp+alpha_r))  &
                 )    , 0._wp)  
-			
+                
+                
+ 
+ 
             
+                
+                
+        ! actual integrals
+        riacr=0._wp
+        piacr=0._wp
+        praci=0._wp
+        lambda0r=lam_r
+        lambda0i=lam_i
+        mrthresh=cr*1.e-6_wp**dr
+        mrupper=cr*(pthreshr/lambda0r)**dr
+        miupper=ci*(pthreshi/lambda0i)**di
+        mrupper=min(mrupper,miupper)
+        ! only call integral if mrupper gt mrthresh
+        if((mrupper.gt.mrthresh).and.(qr.gt.qsmall) .and.(qi.gt.qsmall)) then
+            n0r=n_r
+            n0i=n_i
+
+            if(heyms_west) then
+                ci_new=pi/6._wp*min(910._wp, &
+                    qi/(vol_xtal+rime_m/500._wp))
+                a_hw_new=a_hw1
+                pre_hw_new=pre_hw
+                call quad2d_qgaus(dintegral_coll_num_hw, &
+                    limit1_coll,limit2_coll,mrthresh,mrupper,riacr)
+                call quad2d_qgaus(dintegral_coll_mass1_hw, &
+                    limit1_coll,limit2_coll,mrthresh,mrupper,praci)
+                call quad2d_qgaus(dintegral_coll_mass2_hw, &
+                    limit1_coll,limit2_coll,mrthresh,mrupper,piacr)
+!             else
+!                 call quad2d_qgaus(dintegral_mode1, &
+!                     limit1_mode1,limit2_mode1,mrthresh,mrupper,dummy3)                    
+            endif
+         endif
+        rraci=riacr
+                
+			
     end subroutine collisions_between_precipitating_particles
 	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -4416,7 +4527,7 @@
 
             if(heyms_west) then
                 ci_new=pi/6._wp*min(910._wp, &
-                    qi/(vol_xtal+rime_m/920._wp))
+                    qi/(vol_xtal+rime_m/500._wp))
                 a_hw_new=a_hw1
                 pre_hw_new=pre_hw
                 call quad2d_qgaus(dintegral_mode1_hw, &
@@ -4470,7 +4581,7 @@
 
             if(heyms_west) then
                 ci_new=pi/6._wp*min(910._wp, &
-                    qi/(vol_xtal+rime_m/920._wp))
+                    qi/(vol_xtal+rime_m/500._wp))
                 a_hw_new=a_hw1
                 pre_hw_new=pre_hw
                 call quad2d_qgaus(dintegral_mode2_hw, &
@@ -4513,7 +4624,7 @@
             ! calculate the number of fragments
             lambda0r=lam_i
             lambda0i=lam_i
-            mrthresh=0._wp
+            mrthresh=cr*1.e-6_wp**dr
             mrupper=ci*(pthreshi/lambda0r)**di
             miupper=ci*(pthreshi/lambda0i)**di
             mrupper=min(mrupper,miupper)
@@ -4527,7 +4638,7 @@
                 
                 if(heyms_west) then
                     ci_new=pi/6._wp*min(910._wp, &
-                        qi/(vol_xtal+rime_m/920._wp))
+                        qi/(vol_xtal+rime_m/500._wp))
                     a_hw_new=a_hw1
                     pre_hw_new=pre_hw
                     call quad2d_qgaus(dintegral_collisional_breakup_hw, &
@@ -4543,7 +4654,7 @@
             ! calculate the number of fragments
             lambda0r=lam_i
             lambda0i=lam_i
-            mrthresh=0._wp
+            mrthresh=cr*1.e-6_wp**dr
             mrupper=ci*(pthreshi/lambda0r)**di
             miupper=ci*(pthreshi/lambda0i)**di
             mrupper=min(mrupper,miupper)
@@ -4570,7 +4681,7 @@
                 if(ni>1._wp) then
                 
                     ci_new=pi/6._wp*min(910._wp, &
-                        qi/(vol_xtal+rime_m/920._wp))
+                        qi/(vol_xtal+rime_m/500._wp))
                     a_hw_new=a_hw1
                     pre_hw_new=pre_hw
                     call quad2d_qgaus(dintegral_collisional_breakup2_hw, &
@@ -4578,6 +4689,8 @@
 
                     ! multiplication according to Phillips et al (2017)
                     nfrag_ii=dummy3*dt
+                else
+                    nfrag_ii=0._wp
                 endif
             endif
         endif
@@ -4634,7 +4747,7 @@
         ! using the aerosol parameters work out how many nucleate ice 
         ! (nin_c) and down to which size (din_c)
         call ice_nucleation_aerosol(nin_c,din_c, n_mix, sig_aer, & 
-            d_aer, t ,ni, j_stochastic,dt,ice_nuc_flag)    
+            d_aer, t ,ni, nc, qc, j_stochastic,dt,ice_nuc_flag)    
         
         nin_c=min(nin_c,nc)
         
@@ -4685,7 +4798,7 @@
 	!>@author
 	!>Paul J. Connolly, The University of Manchester, 2023
 	!>@brief calculates ice nucleation and mode1
-	!>@param[in] nc, qc, nr, qr, ni, qi , dt
+	!>@param[in] nc, qc, nr, qr, ni, qi , t,dt
 	!>@param[inout] praci, rraci, piacr, riacr, nin_c, nin_r, &
 	!>          massc_nucc, massr_nucr, 
     !>        piacw, rihal, pidep, pisub, riaci, pimlt, prevp, praut, pracw, &
@@ -4693,19 +4806,16 @@
     subroutine scale_microphysics(praci,rraci, piacr, riacr, &
         nin_c, nin_r, massc_nucc, massr_nucr, piacw, rihal, pidep, pisub, riaci, &
         pimlt, prevp, praut, pracw, rcwaut, rcwacr, rraut, rrsel, &
-        rcwsel, nc,qc,nr, qr,ni,qi,dt)
+        rcwsel, nc,qc,nr, qr,ni,qi,t,dt)
         implicit none
         real(wp), intent(inout) :: praci, rraci, piacr, riacr, nin_c, nin_r, &
             massc_nucc, massr_nucr, &
             piacw, rihal, pidep, pisub, riaci, pimlt, prevp, praut, pracw, &
             rcwaut, rcwacr, rraut, rrsel, rcwsel
-        real(wp), intent(in) :: nc, qc, nr, qr, ni, qi,dt
+        real(wp), intent(in) :: nc, qc, nr, qr, ni, qi,t,dt
 
 
-        real(wp) :: praci_n, rraci_n, piacr_n, riacr_n, nin_c_n, nin_r_n, &
-            piacw_n, rihal_n, pidep_n, pisub_n, riaci_n, pimlt_n, prevp_n, &
-            praut_n, pracw_n, rcwacr_n, rraut_n, rrsel_n, rcwsel_n, &
-            factor1, factor2, factor3, n_melt, n_sub
+        real(wp) :: factor1, factor2, factor3, n_melt, n_sub, n_left
 
         
         ! SCALING: 
@@ -4742,11 +4852,30 @@
         
         ! 1. scale ice water sinks to total mass - nb, piacr is a sink, but also a source
         !    so not included in scaling
-        factor1 = (pimlt + pisub)
+        
+        if(t.gt.ttr) then
+            pimlt=qi/dt
+            pisub=0._wp
+            pidep=0._wp
+            piacr=0._wp
+            piacw=0._wp
+            massc_nucc=0._wp
+            massr_nucr=0._wp
+            nin_c=0._wp
+            nin_r=0._wp
+            riaci=0._wp
+            praci=0._wp
+            rraci=0._wp
+            piacr=0._wp
+            riacr=0._wp
+        endif
+        
+        factor1 = (pimlt + pisub + piacr)
         if(factor1 .gt. 0._wp) then
             factor2 = min(factor1,qi/dt) / factor1
             pimlt = pimlt*factor2
             pisub = pisub*factor2
+            piacr = piacr*factor2
         endif    
         
         ! 2. scale ice water number sinks - nb riacr is a sink, but also a source
@@ -4756,16 +4885,20 @@
             n_sub =  pisub * ni / (qi+qsmall)
             riaci = ni*(1._wp-exp(-riaci/ni*dt))/dt
             
-            factor3 = ni/dt-min(n_melt+n_sub,ni/dt)
+            n_left = ni-n_melt*dt-n_sub*dt
+            
+            factor1 = riaci+riacr
+            factor3 = min(factor1,n_left/dt)
             if(factor3 .gt.0._wp) then
-                factor1 = riaci
-                factor2 = min(factor1,factor3) / factor1
-                riaci = riaci*factor2
+                riaci = riaci*factor3/factor1
+                riacr = riacr*factor3/factor1
             else
                 riaci = 0._wp
+                riacr = 0._wp
             endif
         else
             riaci=0._wp
+            riacr=0._wp
         endif    
         
         ! 3.a scale liquid water mass sinks
@@ -4779,9 +4912,9 @@
         endif    
         
         ! 3.b scale liquid water number sinks
-        factor1 = nin_c/dt + rcwaut+rcwacr+rcwsel + piacr*nc/(qc+qsmall)
+        factor1 = nin_c/dt -rcwaut-rcwacr-rcwsel 
         if(factor1 .gt. 0._wp) then      
-            factor2 = min(factor1,nc/dt) / factor1
+            factor2 = min(factor1,nc/dt-piacw*nc/(qc+qsmall)) / factor1
             nin_c = nin_c*factor2
             rcwaut = rcwaut*factor2
             rcwacr = rcwacr*factor2
@@ -4798,7 +4931,7 @@
         endif    
         
         ! 4.b scale rain water number sinks
-        factor1 = nin_r/dt + rraut+rrsel+rraci
+        factor1 = nin_r/dt - rraut-rrsel-rraci
         if(factor1 .gt. 0._wp) then    
             factor3 = nr/dt-min(prevp*nr/(qr+qsmall),nr/dt)
             if(factor3 .gt. 0._wp) then
@@ -4813,12 +4946,188 @@
                 rraci=0._wp
             endif
         endif    
-        
-        
-                
+               
     end subroutine scale_microphysics
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Scale process rates so that cannot get negative values                             !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	!>@author
+	!>Paul J. Connolly, The University of Manchester, 2023
+	!>@brief calculates ice nucleation and mode1
+	!>@param[in] nc, qc, nr, qr, dt
+	!>@param[inout] prevp, praut, pracw, &
+    !>        rcwaut, rcwacr, rraut, rrsel, rcwsel
+    subroutine scale_microphysics_warm(prevp, praut, pracw, rcwaut, rcwacr, rraut, rrsel, &
+        rcwsel, nc,qc,nr, qr,dt)
+        implicit none
+        real(wp), intent(inout) :: prevp, praut, pracw, &
+            rcwaut, rcwacr, rraut, rrsel, rcwsel
+        real(wp), intent(in) :: nc, qc, nr, qr, dt
+
+
+        real(wp) :: factor1, factor2, factor3
+        
+        ! 3.a scale liquid water mass sinks
+        factor1 = (praut+pracw)
+        if(factor1 .gt. 0._wp) then
+            factor2 = min(praut+pracw,qc/dt) / factor1
+            praut = praut*factor2
+            pracw = pracw*factor2
+        endif    
+        
+        ! 3.b scale liquid water number sinks
+        factor1 = -rcwaut-rcwacr-rcwsel
+        if(factor1 .gt. 0._wp) then      
+            factor2 = min(factor1,nc/dt) / factor1
+            rcwaut = rcwaut*factor2
+            rcwacr = rcwacr*factor2
+            rcwsel = rcwsel*factor2
+        endif    
+        
+        ! 4.a scale rain water mass sinks
+        factor1 = (prevp)
+        if(factor1 .gt. 0._wp) then
+            factor2 = min(prevp,qr/dt) / factor1
+            prevp = prevp*factor2
+        endif    
+        
+        ! 4.b scale rain water number sinks
+        factor1 = -rraut-rrsel
+        if(factor1 .gt. 0._wp) then    
+            factor3 = nr/dt-min(prevp*nr/(qr+qsmall),nr/dt)
+            if(factor3 .gt. 0._wp) then
+                factor2 = min(factor1,factor3) / factor1
+                rraut = rraut*factor2
+            else
+                prevp=qr/dt
+                rraut=0._wp
+            endif
+        endif    
+               
+    end subroutine scale_microphysics_warm
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Move aerosol from one category to another based on a process                       !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	!>@author
+	!>Paul J. Connolly, The University of Manchester, 2023
+	!>@brief calculates ice nucleation and mode1
+	!>@param[in] n_mode, dq, q
+	!>@param[inout] n_aer_a, s_aer_a, m_aer_a, n_aer_b, s_aer_b, m_aer_b
+    subroutine move_aerosol_proportional( n_mode,n_aer_a, s_aer_a, m_aer_a, &
+        n_aer_b, s_aer_b, m_aer_b, dq,q ,recycle)
+            implicit none
+            integer(i4b), intent(in) :: n_mode
+            real(wp), dimension(n_mode-1), intent(inout) :: n_aer_a, s_aer_a, m_aer_a, &
+                n_aer_b, s_aer_b, m_aer_b
+            real(wp), intent(in) :: dq, q
+            logical, intent(in) :: recycle
+            
+            integer(i4b) :: i
+            real(wp) :: dummy1, dummy2, dummy3, rat
+            
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! remove aerosol from one and add to other due to process
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            rat = dq/q
+            do i=1,n_mode-1
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                ! remove from a:                                                !
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                ! number in aerosol modes
+                dummy1=n_aer_a(i)*rat
+                n_aer_a(i)=n_aer_a(i)-dummy1 
+                
+                ! surface area in aerosol modes
+                dummy2=s_aer_a(i)*rat
+                s_aer_a(i)=s_aer_a(i)-dummy2
+
+                ! mass in aerosol modes
+                dummy3=m_aer_a(i)*rat
+                m_aer_a(i)=m_aer_a(i)-dummy3
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+                if(recycle) then
+                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    ! add to aerosol particles in b                                      !
+                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    ! number in aerosol modes
+                    ! qv, n_mode aerosol + 1
+                    n_aer_b(i)=n_aer_b(i)+dummy1 
+                
+                    ! surface area in aerosol modes
+                    s_aer_b(i)=s_aer_b(i)+dummy2
+                
+                    ! mass in aerosol modes
+                    m_aer_b(i)=m_aer_b(i)+dummy3
+                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                endif
+            enddo
+    end subroutine move_aerosol_proportional
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Move aerosol from one category to another based on size                            !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	!>@author
+	!>Paul J. Connolly, The University of Manchester, 2023
+	!>@brief calculates ice nucleation and mode1
+	!>@param[in] n_mode, din_c, n_mix, sig_aer1, d_aer1, density_core1
+	!>@param[inout] n_aer_a, s_aer_a, m_aer_a, n_aer_b, s_aer_b, m_aer_b
+    subroutine move_aerosol_larger_than_size(n_mode, &
+                    din_c,n_mix, sig_aer1, d_aer1, density_core1, &
+                    n_aer_a, s_aer_a, m_aer_a, &
+                    n_aer_b, s_aer_b, m_aer_b)
+                    
+        implicit none
+        integer(i4b), intent(in) :: n_mode
+        real(wp), intent(in) :: din_c, n_mix, sig_aer1, d_aer1, density_core1
+        real(wp), dimension(n_mode-1), intent(inout) :: &
+            n_aer_a, s_aer_a, m_aer_a, n_aer_b, s_aer_b, m_aer_b
+        
+        integer(i4b) :: i
+        real(wp) :: n_tot, s_tot, m_tot, dummy1, dummy2, dummy3
+        
+        n_tot=sum(n_aer_a) ! total number in cw
+        s_tot=sum(s_aer_a)
+        m_tot=sum(m_aer_a)
+        do i=1,n_mode-1
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! remove from cloud water:                                           !
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! number in aerosol modes
+            dummy1=ln_part_mom(0,din_c,n_mix, sig_aer1,d_aer1) * n_aer_a(i)/n_tot
+            n_aer_a(i)=n_aer_a(i)-dummy1
+            ! surface area in aerosol modes
+            dummy2=pi*ln_part_mom(2,din_c,n_mix, sig_aer1,d_aer1) * s_aer_a(i)/s_tot
+            s_aer_a(i)=s_aer_a(i)- dummy2 
+            
+            ! mass in aerosol modes
+            dummy3=pi/6._wp* &
+                density_core1*ln_part_mom(3,din_c,n_mix, sig_aer1,d_aer1) * &
+                m_aer_a(i)/m_tot
+            m_aer_a(i)=m_aer_a(i)- dummy3
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! add to aerosol particles in ice water                              !
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! number in aerosol modes
+            ! qv, n_mode aerosol + 1
+            n_aer_b(i)=n_aer_b(i)+dummy1 
+            
+            ! surface area in aerosol modes
+            s_aer_b(i)=s_aer_b(i)+dummy2 
+            
+            ! mass in aerosol modes
+            m_aer_b(i)=m_aer_b(i)+dummy3
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        enddo
+    end subroutine move_aerosol_larger_than_size
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     end module p_micro_module
     

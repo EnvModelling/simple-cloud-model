@@ -46,9 +46,18 @@ def plot_model_run():
     
     nc=Dataset(fileName)
     
+    hillgrid=tau*0.6/(2.*np.pi)*(1.-np.cos(2.*np.pi/tau*nc['time'][:]))/1000.
     time=nc['time'][:]*u/1000.*60.
+    
     z=nc['z'][:]
     q=nc['q'][:,:,:]
+
+    max1=0.
+    for i in range(len(time)):
+        ind,=np.where(z/1000>=hillgrid[i])
+        max1=max(max1,max(q[i,ind,23]*1000))
+
+
     
     m1=np.max(q[0,:,14]/1.e6)
     #plt.ion()
@@ -74,6 +83,7 @@ def plot_model_run():
     
     ax=plt.subplot(223)
     plt.pcolor(time/60,z/1000.,q[:,:,23].T*1000.)
+    plt.clim((0,max1))
     plt.xlabel('distance (km)')
     plt.ylabel('z (km)')
     plt.text(0.1,0.9,'(c) $q_r$',color='white',transform=ax.transAxes)
@@ -83,6 +93,7 @@ def plot_model_run():
     
     ax=plt.subplot(224)
     plt.pcolor(time/60,z/1000.,q[:,:,30].T/1000.)
+#     plt.plot(time/60.,hillgrid)
     plt.xlabel('distance (km)')
     plt.ylabel('z k(m)')
     plt.text(0.1,0.9,'(d) $N_{ice}$',color='white',transform=ax.transAxes)
