@@ -147,6 +147,7 @@
 		z1=0._wp
 		p2=1.e5_wp*(t_cbase/theta_surf)**(cp/ra)
 		htry=-1.e-3_wp !p2-psurf
+		hmin=1.e-2_wp
 		eps2=1.e-5_wp
 		call vode_integrate(z1,p1,p2,eps2,htry,hmin,hydrostatic1)
 		p1=p2
@@ -252,10 +253,19 @@
 		t(istore2:kp+o_halo)=theta1*(p(istore2:kp+o_halo)/1.e5_wp)**(ra/cp)
 
 		! initialise ice crystals
-		if(ice_init .and. (microphysics_flag .eq. 1)) then
+		if(ice_init .and. (microphysics_flag.eq.1)) then
             where(t(istore:istore2).lt.ttr)
                 q(istore:istore2,iqi)=num_ice*mass_ice
                 q(istore:istore2,ini)=num_ice
+            end where
+        endif
+		if(ice_init .and. (microphysics_flag.eq.3)) then
+            where(t(istore:istore2).lt.ttr)
+                q(istore:istore2,iqi)=num_ice*mass_ice
+                q(istore:istore2,ini)=num_ice
+                q(istore:istore2,ini+2)=num_ice
+                q(istore:istore2,ini+4)=num_ice
+                q(istore:istore2,ini+3)=num_ice*mass_ice/920._wp
             end where
         endif
 		
