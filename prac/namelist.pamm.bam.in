@@ -1,5 +1,4 @@
 ! aerosol parameters
-
 &bulk_aerosol_setup
     n_mode            = 3,
     n_sv              = 10,
